@@ -1,2 +1,1 @@
-# HCI
-A Hybrid Bio-Controller
+# Harverst tile game
