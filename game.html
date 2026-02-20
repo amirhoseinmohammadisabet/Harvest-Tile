@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tile Farm</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="panel" id="user-profile" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img id="user-pic" src="" alt="Profile Picture" style="width: 40px; height: 40px; border-radius: 50%;">
+            <div>
+                <strong id="user-name" style="display: block; font-size: 1.1rem;">Player Name</strong>
+                <span id="user-email" style="font-size: 0.8rem; color: #bdc3c7;">player@email.com</span>
+            </div>
+        </div>
+        <button onclick="signOut()" style="background-color: #e74c3c; margin: 0;">Sign Out</button>
+    </div>
+
+    <div id="message-box" class="message-box"></div>
+
+    <div class="panel">
+        <h1>Tile Farm</h1>
+        <div class="stats-grid">
+            <div>💵 Money: $<span id="money">0</span></div>
+            <div>🌾 Wheat: <span id="wheatCount">2</span></div>
+            <div>🌿 Hops: <span id="hopsCount">0</span></div>
+        </div>
+        
+        <div style="margin-bottom: 10px;">
+            <button onclick="sell('wheat', 1)">Sell 1 Wheat ($2)</button>
+            <button onclick="sellAll('wheat')" style="background-color: #e67e22;">Sell All Wheat</button>
+        </div>
+        <div>
+            <button id="sellHopsBtn" onclick="sell('hops', 1)" disabled>Sell 1 Hops ($10)</button>
+            <button id="sellAllHopsBtn" onclick="sellAll('hops')" disabled style="background-color: #e67e22;">Sell All Hops</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Store & Tools</h2>
+        <div style="margin-bottom: 10px;">
+            <strong>Currently Selected Seed:</strong>
+            <label><input type="radio" name="seed" value="wheat" checked> Wheat</label>
+            <label id="hopsRadioLabel" style="display:none;"><input type="radio" name="seed" value="hops"> Hops</label>
+        </div>
+        <button onclick="buyLot()">Buy Empty Lot ($15)</button>
+        <button id="buyHopsBtn" onclick="unlockHops()">Unlock Hops Seeds ($30)</button>
+    </div>
+
+    <div id="farm">
+        </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

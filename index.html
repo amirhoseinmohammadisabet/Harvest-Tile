@@ -3,45 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tile Farm Idle</title>
+    <title>Tile Farm - Sign In</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .login-box {
+            background-color: #34495e;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        }
+    </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
-    <div id="message-box" class="message-box"></div>
+    <div class="login-container">
+        <div class="login-box">
+            <h1>🌾 Welcome to Tile Farm</h1>
+            <p>Please sign in to access your farm.</p>
+            
+            <div id="g_id_onload"
+                 data-client_id="434327259222-26st4d0dtrqri0rab1t94qkggre50ul3.apps.googleusercontent.com"
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
 
-    <div class="panel">
-        <h1>Tile Farm</h1>
-        <div class="stats-grid">
-            <div>💵 Money: $<span id="money">0</span></div>
-            <div>🌾 Wheat: <span id="wheatCount">2</span></div>
-            <div>🌿 Hops: <span id="hopsCount">0</span></div>
-        </div>
-        
-        <div style="margin-bottom: 10px;">
-            <button onclick="sell('wheat', 1)">Sell 1 Wheat</button>
-            <button onclick="sellAll('wheat')" style="background-color: #e67e22;">Sell All Wheat</button>
-        </div>
-        <div>
-            <button id="sellHopsBtn" onclick="sell('hops', 1)" disabled>Sell 1 Hops</button>
-            <button id="sellAllHopsBtn" onclick="sellAll('hops')" disabled style="background-color: #e67e22;">Sell All Hops</button>
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-size="large"
+                 data-logo_alignment="left">
+            </div>
         </div>
     </div>
 
-    <div class="panel">
-        <h2>Store & Tools</h2>
-        <div style="margin-bottom: 10px;">
-            <strong>Currently Selected Seed:</strong>
-            <label><input type="radio" name="seed" value="wheat" checked> Wheat</label>
-            <label id="hopsRadioLabel" style="display:none;"><input type="radio" name="seed" value="hops"> Hops</label>
-        </div>
-        <button onclick="buyLot()">Buy Empty Lot ($15)</button>
-        <button id="buyHopsBtn" onclick="unlockHops()">Unlock Hops Seeds ($30)</button>
-    </div>
+    <script>
+        function decodeJwtResponse(token) {
+            let base64Url = token.split('.')[1];
+            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        }
 
-    <div id="farm">
-        </div>
-
-    <script src="game.js"></script>
+        function handleCredentialResponse(response) {
+            const responsePayload = decodeJwtResponse(response.credential);
+            const user = {
+                name: responsePayload.name,
+                email: responsePayload.email,
+                picture: responsePayload.picture
+            };
+            localStorage.setItem('farmCurrentUser', JSON.stringify(user));
+            window.location.href = "game.html";
+        }
+    </script>
 </body>
 </html>
