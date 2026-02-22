@@ -16,5 +16,14 @@
         "sellPrice": 10,
         "growingColor": "#2ecc71",
         "readyColor": "#27ae60"
+    },
+    "pumpkins": {
+        "id": "pumpkins",
+        "name": "Pumpkins",
+        "growTime": 60,
+        "yield": 3,
+        "sellPrice": 50,
+        "growingColor": "#d35400",
+        "readyColor": "#e67e22"
     }
 }

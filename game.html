@@ -27,6 +27,7 @@
             <div>💵 Money: $<span id="money">0</span></div>
             <div>🌾 Wheat: <span id="wheatCount">2</span></div>
             <div>🌿 Hops: <span id="hopsCount">0</span></div>
+            <div>🎃 Pumpkins: <span id="pumpkinsCount">0</span></div>
         </div>
         
         <div style="margin-bottom: 10px;">
@@ -37,6 +38,10 @@
             <button id="sellHopsBtn" onclick="sell('hops', 1)" disabled>Sell 1 Hops ($10)</button>
             <button id="sellAllHopsBtn" onclick="sellAll('hops')" disabled style="background-color: #e67e22;">Sell All Hops</button>
         </div>
+        <div style="margin-top: 10px;">
+            <button id="sellPumpkinsBtn" onclick="sell('pumpkins', 1)" disabled>Sell 1 Pumpkin ($50)</button>
+            <button id="sellAllPumpkinsBtn" onclick="sellAll('pumpkins')" disabled style="background-color: #e67e22;">Sell All Pumpkins</button>
+        </div>
     </div>
 
     <div class="panel">
@@ -45,9 +50,18 @@
             <strong>Currently Selected Seed:</strong>
             <label><input type="radio" name="seed" value="wheat" checked> Wheat</label>
             <label id="hopsRadioLabel" style="display:none;"><input type="radio" name="seed" value="hops"> Hops</label>
+            <label id="pumpkinsRadioLabel" style="display:none;"><input type="radio" name="seed" value="pumpkins"> Pumpkins</label>
         </div>
+        
         <button onclick="buyLot()">Buy Empty Lot ($15)</button>
         <button id="buyHopsBtn" onclick="unlockHops()">Unlock Hops Seeds ($30)</button>
+        <button id="buyPumpkinsBtn" onclick="unlockPumpkins()" style="background-color: #e67e22;">Unlock Pumpkin Seeds ($2500)</button>
+        
+        <button id="buyScytheBtn" onclick="buyScythe()" style="background-color: #8e44ad;">Buy Scythe ($500)</button>
+        <button id="harvestAllBtn" onclick="harvestAll()" style="display:none; background-color: #27ae60;">🌾 Harvest All</button>
+        
+        <button id="buyPlanterBtn" onclick="buyPlanter()" style="background-color: #d35400;">Buy Planting Machine ($1000)</button>
+        <button id="plantAllBtn" onclick="plantAll()" style="display:none; background-color: #f39c12;">🚜 Plant All</button>
     </div>
 
     <div id="farm">

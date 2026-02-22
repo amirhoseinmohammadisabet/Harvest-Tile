@@ -43,6 +43,17 @@ button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
     transition: opacity 0.3s ease-in-out;
 }
 
+/* Add to styles.css */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.lot:not(.empty) {
+    animation: pulse 2s infinite ease-in-out;
+}
+
 /* Farm Grid Setup */
 #farm {
     display: flex;

@@ -7,7 +7,10 @@ let state = {
     inventory: { wheat: 2, hops: 0 },
     lots: [null, null, null, null],
     hopsUnlocked: false,
-    lotPrice: 15
+    lotPrice: 15,
+    scytheUnlocked: false,
+    planterUnlocked: false,
+    pumpkinsUnlocked: false
 };
 
 let crops = {}; 
@@ -89,13 +92,17 @@ function showMessage(msg) {
 }
 
 function updateUI() {
+    // 1. Update Stats
     document.getElementById('money').innerText = state.money;
     document.getElementById('wheatCount').innerText = state.inventory.wheat;
     document.getElementById('hopsCount').innerText = state.inventory.hops;
+    document.getElementById('pumpkinsCount').innerText = state.inventory.pumpkins || 0;
     
+    // 2. Update Dynamic Buttons
     const buyLotBtn = document.querySelector('button[onclick="buyLot()"]');
     if (buyLotBtn) buyLotBtn.innerText = `Buy Empty Lot ($${state.lotPrice})`;
     
+    // 3. Hops UI Logic
     if (state.hopsUnlocked) {
         document.getElementById('buyHopsBtn').style.display = 'none';
         document.getElementById('hopsRadioLabel').style.display = 'inline';
@@ -110,6 +117,53 @@ function updateUI() {
         document.getElementById('sellHopsBtn').disabled = true;
         const sellAllHopsBtn = document.getElementById('sellAllHopsBtn');
         if (sellAllHopsBtn) sellAllHopsBtn.disabled = true;
+    }
+
+    // 4. Scythe UI Logic
+    if (state.scytheUnlocked) {
+        const buyScytheBtn = document.getElementById('buyScytheBtn');
+        if (buyScytheBtn) buyScytheBtn.style.display = 'none';
+        
+        const harvestAllBtn = document.getElementById('harvestAllBtn');
+        if (harvestAllBtn) harvestAllBtn.style.display = 'inline-block';
+    } else {
+        const buyScytheBtn = document.getElementById('buyScytheBtn');
+        if (buyScytheBtn) buyScytheBtn.style.display = 'inline-block';
+        
+        const harvestAllBtn = document.getElementById('harvestAllBtn');
+        if (harvestAllBtn) harvestAllBtn.style.display = 'none';
+    }
+
+    // 5. Planter UI Logic
+    if (state.planterUnlocked) {
+        const buyPlanterBtn = document.getElementById('buyPlanterBtn');
+        if (buyPlanterBtn) buyPlanterBtn.style.display = 'none';
+        
+        const plantAllBtn = document.getElementById('plantAllBtn');
+        if (plantAllBtn) plantAllBtn.style.display = 'inline-block';
+    } else {
+        const buyPlanterBtn = document.getElementById('buyPlanterBtn');
+        if (buyPlanterBtn) buyPlanterBtn.style.display = 'inline-block';
+        
+        const plantAllBtn = document.getElementById('plantAllBtn');
+        if (plantAllBtn) plantAllBtn.style.display = 'none';
+    }
+
+    // 6. Pumpkins UI Logic
+    if (state.pumpkinsUnlocked) {
+        document.getElementById('buyPumpkinsBtn').style.display = 'none';
+        document.getElementById('pumpkinsRadioLabel').style.display = 'inline';
+        
+        document.getElementById('sellPumpkinsBtn').disabled = false;
+        const sellAllPumpkinsBtn = document.getElementById('sellAllPumpkinsBtn');
+        if (sellAllPumpkinsBtn) sellAllPumpkinsBtn.disabled = false;
+    } else {
+        document.getElementById('buyPumpkinsBtn').style.display = 'inline-block';
+        document.getElementById('pumpkinsRadioLabel').style.display = 'none';
+        
+        document.getElementById('sellPumpkinsBtn').disabled = true;
+        const sellAllPumpkinsBtn = document.getElementById('sellAllPumpkinsBtn');
+        if (sellAllPumpkinsBtn) sellAllPumpkinsBtn.disabled = true;
     }
 }
 
@@ -195,15 +249,15 @@ function harvestCrop(lotIndex) {
     renderFarm();
 }
 
+// Fixed Sell Logic
 function sell(cropType, amount = 1) {
-    if (state.inventory[cropType] > amount) { 
+    // Check if performing this sale leaves at least 1 seed
+    if (state.inventory[cropType] - amount >= 1) { 
         state.inventory[cropType] -= amount;
         state.money += (crops[cropType].sellPrice * amount);
         updateUI();
-    } else if (state.inventory[cropType] === amount) {
-        showMessage(`You must keep at least 1 ${crops[cropType].name} seed!`);
     } else {
-        showMessage(`You don't have any ${crops[cropType].name} to sell!`);
+        showMessage(`You must keep at least 1 ${crops[cropType].name} seed to keep planting!`);
     }
 }
 
@@ -213,10 +267,8 @@ function sellAll(cropType) {
         state.inventory[cropType] -= amountToSell;
         state.money += (crops[cropType].sellPrice * amountToSell);
         updateUI();
-    } else if (state.inventory[cropType] === 1) {
-        showMessage(`You must keep at least 1 ${crops[cropType].name} seed!`);
     } else {
-        showMessage(`You don't have any ${crops[cropType].name} to sell!`);
+        showMessage(`You only have 1 ${crops[cropType].name} seed left!`);
     }
 }
 
@@ -241,6 +293,103 @@ function unlockHops() {
         updateUI();
     } else {
         showMessage("Not enough money to unlock Hops!");
+    }
+}
+
+function unlockPumpkins() {
+    const unlockPrice = 2500;
+    if (state.money >= unlockPrice) {
+        state.money -= unlockPrice;
+        state.pumpkinsUnlocked = true;
+        state.inventory.pumpkins += 1; 
+        showMessage("Pumpkins unlocked! You received 1 starter seed.");
+        updateUI();
+    } else {
+        showMessage(`Not enough money! You need $${unlockPrice} to unlock Pumpkins.`);
+    }
+}
+
+// --- New Scythe Actions ---
+function buyScythe() {
+    const scythePrice = 500;
+    if (state.money >= scythePrice && !state.scytheUnlocked) {
+        state.money -= scythePrice;
+        state.scytheUnlocked = true;
+        showMessage("Scythe unlocked! You can now harvest all ready crops at once.");
+        updateUI();
+    } else if (state.scytheUnlocked) {
+        showMessage("You already own the Scythe!");
+    } else {
+        showMessage(`Not enough money! You need $${scythePrice} to buy the Scythe.`);
+    }
+}
+
+function harvestAll() {
+    if (!state.scytheUnlocked) return;
+    
+    const now = Date.now();
+    let harvestedAnything = false;
+
+    // Loop through all lots and harvest the ready ones
+    state.lots.forEach((lot, index) => {
+        if (lot !== null && lot.finishTime <= now) {
+            const cropType = lot.type;
+            const amount = crops[cropType].yield;
+            state.inventory[cropType] += amount;
+            state.lots[index] = null; // Clear the lot
+            harvestedAnything = true;
+        }
+    });
+
+    if (harvestedAnything) {
+        showMessage("Harvested all ready crops!");
+        updateUI();
+        renderFarm();
+    } else {
+        showMessage("No crops are ready to harvest right now.");
+    }
+}
+
+// --- New Planter Actions ---
+function buyPlanter() {
+    const planterPrice = 1000;
+    if (state.money >= planterPrice && !state.planterUnlocked) {
+        state.money -= planterPrice;
+        state.planterUnlocked = true;
+        showMessage("Planting Machine unlocked! You can now plant multiple empty lots at once.");
+        updateUI();
+    } else if (state.planterUnlocked) {
+        showMessage("You already own the Planting Machine!");
+    } else {
+        showMessage(`Not enough money! You need $${planterPrice} to buy the Planting Machine.`);
+    }
+}
+
+function plantAll() {
+    if (!state.planterUnlocked) return;
+
+    const seed = getSelectedSeed();
+    let plantedAnything = false;
+
+    // Loop through all lots and plant if empty AND if we have enough seeds
+    for (let i = 0; i < state.lots.length; i++) {
+        if (state.lots[i] === null && state.inventory[seed] >= 1) {
+            state.inventory[seed] -= 1;
+            const finishTime = Date.now() + (crops[seed].growTime * 1000);
+            
+            state.lots[i] = { type: seed, finishTime: finishTime, isReady: false };
+            plantedAnything = true;
+        }
+    }
+
+    if (plantedAnything) {
+        showMessage(`Planted as much ${crops[seed].name} as possible!`);
+        updateUI();
+        renderFarm();
+    } else if (state.inventory[seed] < 1) {
+        showMessage(`You don't have any ${crops[seed].name} seeds!`);
+    } else {
+        showMessage("No empty lots available to plant.");
     }
 }
 
