@@ -47,6 +47,7 @@ function loadGame() {
     if (savedState) {
         const parsedState = JSON.parse(savedState);
         
+        // Handle offline progress
         if (parsedState.lots) {
             parsedState.lots.forEach(lot => {
                 if (lot !== null && lot.timeLeft !== undefined) {
@@ -55,7 +56,21 @@ function loadGame() {
                 }
             });
         }
+        
+        // Merge the save file with the default state
         state = { ...state, ...parsedState }; 
+        
+        // --- SAVE FILE FIXER ---
+        // 1. Initialize Pumpkins if missing
+        if (state.inventory.pumpkins === undefined) {
+            state.inventory.pumpkins = 0;
+        }
+
+        // 2. Rescue Player: If Pumpkins are unlocked but count is 0, give 1 seed
+        if (state.pumpkinsUnlocked && state.inventory.pumpkins <= 0) {
+            state.inventory.pumpkins = 1;
+            showMessage("Save fixed: Restored 1 Pumpkin seed!");
+        }
     }
 }
 
@@ -92,24 +107,38 @@ function showMessage(msg) {
 }
 
 function updateUI() {
-    // 1. Update Stats
+    // 1. Update Stats Display
     document.getElementById('money').innerText = state.money;
     document.getElementById('wheatCount').innerText = state.inventory.wheat;
     document.getElementById('hopsCount').innerText = state.inventory.hops;
-    document.getElementById('pumpkinsCount').innerText = state.inventory.pumpkins || 0;
-    
-    // 2. Update Dynamic Buttons
+    // Check if pumpkin element exists (safety check)
+    if(document.getElementById('pumpkinsCount')) {
+         document.getElementById('pumpkinsCount').innerText = state.inventory.pumpkins || 0;
+    }
+
+    // 2. Update Lot Price Button
     const buyLotBtn = document.querySelector('button[onclick="buyLot()"]');
     if (buyLotBtn) buyLotBtn.innerText = `Buy Empty Lot ($${state.lotPrice})`;
+
+    // --- WHEAT SAFETY LOCK ---
+    // If we have 1 or 0 wheat, disable the buttons
+    const wheatLow = (state.inventory.wheat <= 1); 
+    const wheatBtn = document.getElementById('sellWheatBtn');
+    const wheatAllBtn = document.getElementById('sellAllWheatBtn');
     
-    // 3. Hops UI Logic
+    if (wheatBtn) wheatBtn.disabled = wheatLow;
+    if (wheatAllBtn) wheatAllBtn.disabled = wheatLow;
+
+    // --- HOPS SAFETY LOCK ---
     if (state.hopsUnlocked) {
         document.getElementById('buyHopsBtn').style.display = 'none';
         document.getElementById('hopsRadioLabel').style.display = 'inline';
         
-        document.getElementById('sellHopsBtn').disabled = false;
+        // Disable if 1 or 0 hops
+        const hopsLow = (state.inventory.hops <= 1);
+        document.getElementById('sellHopsBtn').disabled = hopsLow;
         const sellAllHopsBtn = document.getElementById('sellAllHopsBtn');
-        if (sellAllHopsBtn) sellAllHopsBtn.disabled = false;
+        if (sellAllHopsBtn) sellAllHopsBtn.disabled = hopsLow;
     } else {
         document.getElementById('buyHopsBtn').style.display = 'inline-block';
         document.getElementById('hopsRadioLabel').style.display = 'none';
@@ -119,7 +148,37 @@ function updateUI() {
         if (sellAllHopsBtn) sellAllHopsBtn.disabled = true;
     }
 
-    // 4. Scythe UI Logic
+    // --- PUMPKINS SAFETY LOCK ---
+    if (state.pumpkinsUnlocked) {
+        const buyPumpkinsBtn = document.getElementById('buyPumpkinsBtn');
+        if (buyPumpkinsBtn) buyPumpkinsBtn.style.display = 'none';
+        
+        const pumpkinsRadio = document.getElementById('pumpkinsRadioLabel');
+        if (pumpkinsRadio) pumpkinsRadio.style.display = 'inline';
+        
+        // Disable if 1 or 0 pumpkins
+        const pumpkinsLow = (state.inventory.pumpkins <= 1);
+        const sellPumpkinsBtn = document.getElementById('sellPumpkinsBtn');
+        if (sellPumpkinsBtn) sellPumpkinsBtn.disabled = pumpkinsLow;
+        
+        const sellAllPumpkinsBtn = document.getElementById('sellAllPumpkinsBtn');
+        if (sellAllPumpkinsBtn) sellAllPumpkinsBtn.disabled = pumpkinsLow;
+    } else {
+        const buyPumpkinsBtn = document.getElementById('buyPumpkinsBtn');
+        if (buyPumpkinsBtn) buyPumpkinsBtn.style.display = 'inline-block';
+        
+        const pumpkinsRadio = document.getElementById('pumpkinsRadioLabel');
+        if (pumpkinsRadio) pumpkinsRadio.style.display = 'none';
+        
+        // Always disabled if not unlocked
+        const sellPumpkinsBtn = document.getElementById('sellPumpkinsBtn');
+        if (sellPumpkinsBtn) sellPumpkinsBtn.disabled = true;
+        
+        const sellAllPumpkinsBtn = document.getElementById('sellAllPumpkinsBtn');
+        if (sellAllPumpkinsBtn) sellAllPumpkinsBtn.disabled = true;
+    }
+
+    // --- TOOL LOGIC (Scythe & Planter) ---
     if (state.scytheUnlocked) {
         const buyScytheBtn = document.getElementById('buyScytheBtn');
         if (buyScytheBtn) buyScytheBtn.style.display = 'none';
@@ -134,7 +193,6 @@ function updateUI() {
         if (harvestAllBtn) harvestAllBtn.style.display = 'none';
     }
 
-    // 5. Planter UI Logic
     if (state.planterUnlocked) {
         const buyPlanterBtn = document.getElementById('buyPlanterBtn');
         if (buyPlanterBtn) buyPlanterBtn.style.display = 'none';
@@ -147,23 +205,6 @@ function updateUI() {
         
         const plantAllBtn = document.getElementById('plantAllBtn');
         if (plantAllBtn) plantAllBtn.style.display = 'none';
-    }
-
-    // 6. Pumpkins UI Logic
-    if (state.pumpkinsUnlocked) {
-        document.getElementById('buyPumpkinsBtn').style.display = 'none';
-        document.getElementById('pumpkinsRadioLabel').style.display = 'inline';
-        
-        document.getElementById('sellPumpkinsBtn').disabled = false;
-        const sellAllPumpkinsBtn = document.getElementById('sellAllPumpkinsBtn');
-        if (sellAllPumpkinsBtn) sellAllPumpkinsBtn.disabled = false;
-    } else {
-        document.getElementById('buyPumpkinsBtn').style.display = 'inline-block';
-        document.getElementById('pumpkinsRadioLabel').style.display = 'none';
-        
-        document.getElementById('sellPumpkinsBtn').disabled = true;
-        const sellAllPumpkinsBtn = document.getElementById('sellAllPumpkinsBtn');
-        if (sellAllPumpkinsBtn) sellAllPumpkinsBtn.disabled = true;
     }
 }
 
@@ -298,12 +339,23 @@ function unlockHops() {
 
 function unlockPumpkins() {
     const unlockPrice = 2500;
-    if (state.money >= unlockPrice) {
+    
+    // Check if they have the money AND haven't bought it yet
+    if (state.money >= unlockPrice && !state.pumpkinsUnlocked) {
         state.money -= unlockPrice;
         state.pumpkinsUnlocked = true;
+        
+        // FIX: If loading an old save, create the pumpkins inventory slot
+        if (state.inventory.pumpkins === undefined || isNaN(state.inventory.pumpkins)) {
+            state.inventory.pumpkins = 0;
+        }
+        
         state.inventory.pumpkins += 1; 
         showMessage("Pumpkins unlocked! You received 1 starter seed.");
         updateUI();
+        
+    } else if (state.pumpkinsUnlocked) {
+        showMessage("You already unlocked Pumpkins!");
     } else {
         showMessage(`Not enough money! You need $${unlockPrice} to unlock Pumpkins.`);
     }
