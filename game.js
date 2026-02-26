@@ -10,11 +10,29 @@ let state = {
     lotPrice: 15,
     scytheUnlocked: false,
     planterUnlocked: false,
-    pumpkinsUnlocked: false
+    pumpkinsUnlocked: false,
+    muted: false
 };
 
 let crops = {}; 
 let messageTimeout;
+
+// --- Sound System ---
+const sounds = {
+    plant: new Audio('plant.mp3'),
+    harvest: new Audio('harvest.mp3'),
+    money: new Audio('money.mp3')
+};
+
+function playSound(name) {
+    // If muted, stop here and do nothing
+    if (state.muted) return; 
+
+    if (sounds[name]) {
+        sounds[name].currentTime = 0;
+        sounds[name].play().catch(e => console.log("Audio play failed:", e));
+    }
+}
 
 function checkAuth() {
     const storedUser = localStorage.getItem('farmCurrentUser');
@@ -57,19 +75,27 @@ function loadGame() {
             });
         }
         
-        // Merge the save file with the default state
+        // 1. Load the main state
         state = { ...state, ...parsedState }; 
         
-        // --- SAVE FILE FIXER ---
-        // 1. Initialize Pumpkins if missing
+        // 2. CRITICAL FIX: "Deep Merge" the inventory
+        // This ensures if the save file has 'wheat' but no 'pumpkins', 
+        // we keep the 'pumpkins: 0' from the default state instead of losing it.
+        if (parsedState.inventory) {
+            state.inventory = { ...state.inventory, ...parsedState.inventory };
+        }
+        
+        // 3. Initialize Pumpkins if still missing
         if (state.inventory.pumpkins === undefined) {
             state.inventory.pumpkins = 0;
         }
 
-        // 2. Rescue Player: If Pumpkins are unlocked but count is 0, give 1 seed
-        if (state.pumpkinsUnlocked && state.inventory.pumpkins <= 0) {
+        // 4. SMARTER RESCUE: Only give a seed if they have 0 AND aren't growing any
+        const growingPumpkins = state.lots.filter(lot => lot && lot.type === 'pumpkins').length;
+        
+        if (state.pumpkinsUnlocked && state.inventory.pumpkins <= 0 && growingPumpkins === 0) {
             state.inventory.pumpkins = 1;
-            showMessage("Save fixed: Restored 1 Pumpkin seed!");
+            showMessage("Emergency: 1 Pumpkin seed provided (You had none left!)");
         }
     }
 }
@@ -83,7 +109,7 @@ async function init() {
         crops = await response.json();
         
         loadGame();
-        
+        updateMuteButton();
         updateUI();
         renderFarm();
         startGameLoop();
@@ -211,6 +237,7 @@ function updateUI() {
 function renderFarm() {
     const farmDiv = document.getElementById('farm');
     
+    // Create tiles if they don't exist yet
     if (farmDiv.children.length !== state.lots.length) {
         farmDiv.innerHTML = ''; 
         state.lots.forEach((lot, index) => {
@@ -229,22 +256,43 @@ function renderFarm() {
         
         if (lot === null) {
             tile.className = 'lot empty';
-            tile.innerText = 'Empty\n(Click to Plant)';
+            tile.innerHTML = 'Empty<br><span style="font-size:0.8em">(Click to Plant)</span>';
             tile.style.backgroundColor = ''; 
             tile.style.borderColor = '';
         } else {
-            const secondsLeft = Math.ceil((lot.finishTime - now) / 1000);
+            // Calculate growth progress
+            const totalGrowTime = crops[lot.type].growTime * 1000;
+            const timeRemaining = lot.finishTime - now;
+            const timeElapsed = totalGrowTime - timeRemaining;
+            
+            // Calculate percentage (0 to 100)
+            let percentage = (timeElapsed / totalGrowTime) * 100;
+            if (percentage > 100) percentage = 100;
+            if (percentage < 0) percentage = 0;
+
+            const secondsLeft = Math.ceil(timeRemaining / 1000);
             
             if (secondsLeft > 0) {
                 tile.className = 'lot';
-                tile.innerText = `${crops[lot.type].name}\n⏳ ${secondsLeft}s`;
                 tile.style.backgroundColor = crops[lot.type].growingColor;
                 tile.style.borderColor = 'rgba(0,0,0,0.2)';
+                
+                // Render Name, Timer, AND Progress Bar
+                tile.innerHTML = `
+                    <div>${crops[lot.type].name}</div>
+                    <div style="font-size: 0.9em; margin-bottom: 2px;">⏳ ${secondsLeft}s</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${percentage}%"></div>
+                    </div>
+                `;
             } else {
                 tile.className = 'lot';
-                tile.innerText = `${crops[lot.type].name}\n✔️ Harvest`;
                 tile.style.backgroundColor = crops[lot.type].readyColor;
                 tile.style.borderColor = 'white';
+                tile.innerHTML = `
+                    <div style="font-size: 1.2em;">${crops[lot.type].name}</div>
+                    <div style="font-weight: bold;">✔️ Ready!</div>
+                `;
             }
         }
     });
@@ -274,6 +322,7 @@ function plantCrop(lotIndex) {
         const finishTime = Date.now() + (crops[seed].growTime * 1000);
         
         state.lots[lotIndex] = { type: seed, finishTime: finishTime, isReady: false };
+        playSound('plant');
         updateUI();
         renderFarm();
     } else {
@@ -286,6 +335,7 @@ function harvestCrop(lotIndex) {
     const amount = crops[cropType].yield;
     state.inventory[cropType] += amount;
     state.lots[lotIndex] = null;
+    playSound('harvest');
     updateUI();
     renderFarm();
 }
@@ -296,6 +346,7 @@ function sell(cropType, amount = 1) {
     if (state.inventory[cropType] - amount >= 1) { 
         state.inventory[cropType] -= amount;
         state.money += (crops[cropType].sellPrice * amount);
+        playSound('money');
         updateUI();
     } else {
         showMessage(`You must keep at least 1 ${crops[cropType].name} seed to keep planting!`);
@@ -307,6 +358,7 @@ function sellAll(cropType) {
         const amountToSell = state.inventory[cropType] - 1;
         state.inventory[cropType] -= amountToSell;
         state.money += (crops[cropType].sellPrice * amountToSell);
+        playSound('money');
         updateUI();
     } else {
         showMessage(`You only have 1 ${crops[cropType].name} seed left!`);
@@ -318,6 +370,7 @@ function buyLot() {
         state.money -= state.lotPrice;
         state.lots.push(null);
         state.lotPrice = Math.floor(state.lotPrice * 1.2);
+        playSound('money');
         updateUI();
         renderFarm();
     } else {
@@ -394,6 +447,7 @@ function harvestAll() {
     });
 
     if (harvestedAnything) {
+        playSound('harvest');
         showMessage("Harvested all ready crops!");
         updateUI();
         renderFarm();
@@ -435,6 +489,7 @@ function plantAll() {
     }
 
     if (plantedAnything) {
+        playSound('plant');
         showMessage(`Planted as much ${crops[seed].name} as possible!`);
         updateUI();
         renderFarm();
@@ -442,6 +497,25 @@ function plantAll() {
         showMessage(`You don't have any ${crops[seed].name} seeds!`);
     } else {
         showMessage("No empty lots available to plant.");
+    }
+}
+
+function toggleMute() {
+    state.muted = !state.muted; // Flip true/false
+    updateMuteButton();
+    saveGame(); // Save preference immediately
+}
+
+function updateMuteButton() {
+    const btn = document.getElementById('muteBtn');
+    if (!btn) return;
+
+    if (state.muted) {
+        btn.innerText = "🔇 Unmute";
+        btn.style.backgroundColor = "#95a5a6"; // Grey when muted
+    } else {
+        btn.innerText = "🔊 Mute";
+        btn.style.backgroundColor = "#3498db"; // Blue when on
     }
 }
 

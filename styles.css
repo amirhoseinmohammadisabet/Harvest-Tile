@@ -84,3 +84,21 @@ button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
     background-color: #8d6e63; 
     border: 2px dashed #5d4037; 
 }
+
+/* Progress Bar Styles */
+.progress-container {
+    width: 80%;
+    height: 8px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #00e676; /* Bright Green */
+    width: 0%;
+    transition: width 1s linear; /* Smooth movement */
+    box-shadow: 0 0 5px rgba(0, 230, 118, 0.5);
+}

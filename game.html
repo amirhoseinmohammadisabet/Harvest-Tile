@@ -16,7 +16,11 @@
                 <span id="user-email" style="font-size: 0.8rem; color: #bdc3c7;">player@email.com</span>
             </div>
         </div>
-        <button onclick="signOut()" style="background-color: #e74c3c; margin: 0;">Sign Out</button>
+        
+        <div>
+            <button id="muteBtn" onclick="toggleMute()" style="margin-right: 10px;">🔊 Mute</button>
+            <button onclick="signOut()" style="background-color: #e74c3c; margin: 0;">Sign Out</button>
+        </div>
     </div>
 
     <div id="message-box" class="message-box"></div>
