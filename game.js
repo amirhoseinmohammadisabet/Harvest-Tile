@@ -11,6 +11,7 @@ let state = {
     scytheUnlocked: false,
     planterUnlocked: false,
     pumpkinsUnlocked: false,
+    watermelonsUnlocked: false,
     muted: false
 };
 
@@ -97,6 +98,17 @@ function loadGame() {
             state.inventory.pumpkins = 1;
             showMessage("Emergency: 1 Pumpkin seed provided (You had none left!)");
         }
+        // Initialize Watermelons if missing
+        if (state.inventory.watermelons === undefined) {
+            state.inventory.watermelons = 0;
+        }
+
+        // Rescue Logic for Watermelons
+        const growingWatermelons = state.lots.filter(lot => lot && lot.type === 'watermelons').length;
+        if (state.watermelonsUnlocked && state.inventory.watermelons <= 0 && growingWatermelons === 0) {
+            state.inventory.watermelons = 1;
+            console.log("Save fixed: Restored 1 Watermelon seed!");
+        }
     }
 }
 
@@ -140,6 +152,9 @@ function updateUI() {
     // Check if pumpkin element exists (safety check)
     if(document.getElementById('pumpkinsCount')) {
          document.getElementById('pumpkinsCount').innerText = state.inventory.pumpkins || 0;
+    }
+    if(document.getElementById('watermelonsCount')) {
+         document.getElementById('watermelonsCount').innerText = state.inventory.watermelons || 0;
     }
 
     // 2. Update Lot Price Button
@@ -204,6 +219,34 @@ function updateUI() {
         if (sellAllPumpkinsBtn) sellAllPumpkinsBtn.disabled = true;
     }
 
+    // --- WATERMELONS SAFETY LOCK ---
+    if (state.watermelonsUnlocked) {
+        const buyWatermelonsBtn = document.getElementById('buyWatermelonsBtn');
+        if (buyWatermelonsBtn) buyWatermelonsBtn.style.display = 'none';
+        
+        const watermelonsRadio = document.getElementById('watermelonsRadioLabel');
+        if (watermelonsRadio) watermelonsRadio.style.display = 'inline';
+        
+        const watermelonsLow = (state.inventory.watermelons <= 1);
+        const sellWatermelonsBtn = document.getElementById('sellWatermelonsBtn');
+        if (sellWatermelonsBtn) sellWatermelonsBtn.disabled = watermelonsLow;
+        
+        const sellAllWatermelonsBtn = document.getElementById('sellAllWatermelonsBtn');
+        if (sellAllWatermelonsBtn) sellAllWatermelonsBtn.disabled = watermelonsLow;
+    } else {
+        const buyWatermelonsBtn = document.getElementById('buyWatermelonsBtn');
+        if (buyWatermelonsBtn) buyWatermelonsBtn.style.display = 'inline-block';
+        
+        const watermelonsRadio = document.getElementById('watermelonsRadioLabel');
+        if (watermelonsRadio) watermelonsRadio.style.display = 'none';
+        
+        const sellWatermelonsBtn = document.getElementById('sellWatermelonsBtn');
+        if (sellWatermelonsBtn) sellWatermelonsBtn.disabled = true;
+        
+        const sellAllWatermelonsBtn = document.getElementById('sellAllWatermelonsBtn');
+        if (sellAllWatermelonsBtn) sellAllWatermelonsBtn.disabled = true;
+    }
+
     // --- TOOL LOGIC (Scythe & Planter) ---
     if (state.scytheUnlocked) {
         const buyScytheBtn = document.getElementById('buyScytheBtn');
@@ -257,7 +300,7 @@ function renderFarm() {
         if (lot === null) {
             tile.className = 'lot empty';
             tile.innerHTML = 'Empty<br><span style="font-size:0.8em">(Click to Plant)</span>';
-            tile.style.backgroundColor = ''; 
+            tile.style.background = ''; // Reset background
             tile.style.borderColor = '';
         } else {
             // Calculate growth progress
@@ -274,24 +317,27 @@ function renderFarm() {
             
             if (secondsLeft > 0) {
                 tile.className = 'lot';
-                tile.style.backgroundColor = crops[lot.type].growingColor;
+                
+                // NEW: Dynamic background fill using CSS linear-gradient
+                const readyCol = crops[lot.type].readyColor;
+                const growCol = crops[lot.type].growingColor;
+                tile.style.background = `linear-gradient(to top, ${readyCol} ${percentage}%, ${growCol} ${percentage}%)`;
+                
                 tile.style.borderColor = 'rgba(0,0,0,0.2)';
                 
-                // Render Name, Timer, AND Progress Bar
+                // Render just the Name and Timer (no extra progress bar needed)
                 tile.innerHTML = `
                     <div>${crops[lot.type].name}</div>
-                    <div style="font-size: 0.9em; margin-bottom: 2px;">⏳ ${secondsLeft}s</div>
-                    <div class="progress-container">
-                        <div class="progress-bar" style="width: ${percentage}%"></div>
-                    </div>
+                    <div style="font-size: 0.9em; margin-top: 5px;">⏳ ${secondsLeft}s</div>
                 `;
             } else {
                 tile.className = 'lot';
-                tile.style.backgroundColor = crops[lot.type].readyColor;
+                // When 100% ready, make it solid readyColor
+                tile.style.background = crops[lot.type].readyColor;
                 tile.style.borderColor = 'white';
                 tile.innerHTML = `
                     <div style="font-size: 1.2em;">${crops[lot.type].name}</div>
-                    <div style="font-weight: bold;">✔️ Ready!</div>
+                    <div style="font-weight: bold; margin-top: 5px;">✔️ Ready!</div>
                 `;
             }
         }
@@ -411,6 +457,29 @@ function unlockPumpkins() {
         showMessage("You already unlocked Pumpkins!");
     } else {
         showMessage(`Not enough money! You need $${unlockPrice} to unlock Pumpkins.`);
+    }
+}
+
+function unlockWatermelons() {
+    const unlockPrice = 10000;
+    
+    if (state.money >= unlockPrice && !state.watermelonsUnlocked) {
+        state.money -= unlockPrice;
+        state.watermelonsUnlocked = true;
+        
+        if (state.inventory.watermelons === undefined || isNaN(state.inventory.watermelons)) {
+            state.inventory.watermelons = 0;
+        }
+        
+        state.inventory.watermelons += 1; 
+        playSound('money');
+        showMessage("Watermelons unlocked! You received 1 starter seed.");
+        updateUI();
+        
+    } else if (state.watermelonsUnlocked) {
+        showMessage("You already unlocked Watermelons!");
+    } else {
+        showMessage(`Not enough money! You need $${unlockPrice}.`);
     }
 }
 

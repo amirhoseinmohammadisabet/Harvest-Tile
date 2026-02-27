@@ -21,9 +21,18 @@
         "id": "pumpkins",
         "name": "Pumpkins",
         "growTime": 60,
-        "yield": 3,
+        "yield": 2,
         "sellPrice": 50,
         "growingColor": "#d35400",
         "readyColor": "#e67e22"
+    },
+    "watermelons": {
+        "id": "watermelons",
+        "name": "Watermelons",
+        "growTime": 120,
+        "yield": 3,
+        "sellPrice": 150,
+        "growingColor": "#81c784",
+        "readyColor": "#2e7d32"
     }
 }
