@@ -1,0 +1,46 @@
+{
+    "wheat": {
+        "id": "wheat",
+        "name": "Wheat",
+        "growTime": 10,
+        "yield": 2,
+        "sellPrice": 2,
+        "unlockPrice": 0,
+        "icon": "🌾",
+        "growingColor": "#f1c40f",
+        "readyColor": "#f39c12"
+    },
+    "hops": {
+        "id": "hops",
+        "name": "Hops",
+        "growTime": 25,
+        "yield": 2,
+        "sellPrice": 10,
+        "unlockPrice": 30,
+        "icon": "🌿",
+        "growingColor": "#2ecc71",
+        "readyColor": "#27ae60"
+    },
+    "pumpkins": {
+        "id": "pumpkins",
+        "name": "Pumpkins",
+        "growTime": 60,
+        "yield": 2,
+        "sellPrice": 50,
+        "unlockPrice": 2500,
+        "icon": "🎃",
+        "growingColor": "#d35400",
+        "readyColor": "#e67e22"
+    },
+    "watermelons": {
+        "id": "watermelons",
+        "name": "Watermelons",
+        "growTime": 120,
+        "yield": 3,
+        "sellPrice": 150,
+        "unlockPrice": 10000,
+        "icon": "🍉",
+        "growingColor": "#81c784",
+        "readyColor": "#2e7d32"
+    }
+}
