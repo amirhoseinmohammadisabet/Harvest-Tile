@@ -11,7 +11,8 @@ let state = {
     lotPrice: 15,
     scytheUnlocked: false,
     planterUnlocked: false,
-    muted: false
+    muted: false,
+    stats: { totalHarvested: 0, totalEarned: 0, totalSpent: 0 }
 };
 
 let crops = {}; 
@@ -76,6 +77,7 @@ function loadGame() {
         state = { ...state, ...parsedState }; 
         if (parsedState.inventory) state.inventory = { ...state.inventory, ...parsedState.inventory };
         if (parsedState.unlockedCrops) state.unlockedCrops = { ...state.unlockedCrops, ...parsedState.unlockedCrops };
+        if (parsedState.stats) state.stats = { ...state.stats, ...parsedState.stats };
 
         // 3. MIGRATION FOR OLD SAVE FILES
         if (parsedState.hopsUnlocked) state.unlockedCrops.hops = true;
@@ -180,7 +182,7 @@ function showMessage(msg) {
 
 function updateUI() {
     document.getElementById('money').innerText = state.money;
-    
+
     const buyLotBtn = document.querySelector('button[onclick="buyLot()"]');
     if (buyLotBtn) buyLotBtn.innerText = `Buy Empty Lot ($${state.lotPrice})`;
 
@@ -321,6 +323,9 @@ function plantCrop(lotIndex) {
 function harvestCrop(lotIndex) {
     const cropType = state.lots[lotIndex].type;
     state.inventory[cropType] += crops[cropType].yield;
+    
+    state.stats.totalHarvested += crops[cropType].yield; 
+    
     state.lots[lotIndex] = null;
     playSound('harvest');
     updateUI();
@@ -330,7 +335,11 @@ function harvestCrop(lotIndex) {
 function sell(cropType, amount = 1) {
     if (state.inventory[cropType] - amount >= 1) { 
         state.inventory[cropType] -= amount;
-        state.money += (crops[cropType].sellPrice * amount);
+        
+        const earned = (crops[cropType].sellPrice * amount);
+        state.money += earned;
+        state.stats.totalEarned += earned; 
+        
         playSound('money');
         updateUI();
     } else {
@@ -342,7 +351,11 @@ function sellAll(cropType) {
     if (state.inventory[cropType] > 1) {
         const amountToSell = state.inventory[cropType] - 1;
         state.inventory[cropType] -= amountToSell;
-        state.money += (crops[cropType].sellPrice * amountToSell);
+        
+        const earned = (crops[cropType].sellPrice * amountToSell);
+        state.money += earned;
+        state.stats.totalEarned += earned; 
+        
         playSound('money');
         updateUI();
     }
@@ -351,6 +364,7 @@ function sellAll(cropType) {
 function buyLot() {
     if (state.money >= state.lotPrice) {
         state.money -= state.lotPrice;
+        state.stats.totalSpent += state.lotPrice; 
         state.lots.push(null);
         state.lotPrice = Math.floor(state.lotPrice * 1.2);
         playSound('money');
@@ -366,6 +380,7 @@ function unlockCrop(cropId) {
     const crop = crops[cropId];
     if (state.money >= crop.unlockPrice && !state.unlockedCrops[cropId]) {
         state.money -= crop.unlockPrice;
+        state.stats.totalSpent += crop.unlockPrice; 
         state.unlockedCrops[cropId] = true;
         state.inventory[cropId] += 1; 
         playSound('money');
@@ -381,6 +396,7 @@ function unlockCrop(cropId) {
 function buyScythe() {
     if (state.money >= 500 && !state.scytheUnlocked) {
         state.money -= 500;
+        state.stats.totalSpent += 500; 
         state.scytheUnlocked = true;
         showMessage("Scythe unlocked!");
         updateUI();
@@ -394,6 +410,9 @@ function harvestAll() {
     state.lots.forEach((lot, index) => {
         if (lot !== null && lot.finishTime <= now) {
             state.inventory[lot.type] += crops[lot.type].yield;
+            
+            state.stats.totalHarvested += crops[lot.type].yield; 
+
             state.lots[index] = null; 
             harvestedAnything = true;
         }
@@ -409,6 +428,7 @@ function harvestAll() {
 function buyPlanter() {
     if (state.money >= 1000 && !state.planterUnlocked) {
         state.money -= 1000;
+        state.stats.totalSpent += 1000; 
         state.planterUnlocked = true;
         showMessage("Planting Machine unlocked!");
         updateUI();
