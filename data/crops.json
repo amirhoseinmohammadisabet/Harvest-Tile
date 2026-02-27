@@ -21,6 +21,17 @@
         "growingColor": "#2ecc71",
         "readyColor": "#27ae60"
     },
+    "strawberries": {
+        "id": "strawberries",
+        "name": "Strawberries",
+        "growTime": 40,
+        "yield": 3,
+        "sellPrice": 25,
+        "unlockPrice": 500,
+        "icon": "🍓",
+        "growingColor": "#ffcdd2",
+        "readyColor": "#e53935"
+    },
     "pumpkins": {
         "id": "pumpkins",
         "name": "Pumpkins",
@@ -32,6 +43,17 @@
         "growingColor": "#d35400",
         "readyColor": "#e67e22"
     },
+    "corn": {
+        "id": "corn",
+        "name": "Corn",
+        "growTime": 90,
+        "yield": 3,
+        "sellPrice": 80,
+        "unlockPrice": 5000,
+        "icon": "🌽",
+        "growingColor": "#fff9c4",
+        "readyColor": "#fbc02d"
+    },
     "watermelons": {
         "id": "watermelons",
         "name": "Watermelons",
@@ -42,5 +64,38 @@
         "icon": "🍉",
         "growingColor": "#81c784",
         "readyColor": "#2e7d32"
+    },
+    "eggplants": {
+        "id": "eggplants",
+        "name": "Eggplants",
+        "growTime": 180,
+        "yield": 3,
+        "sellPrice": 300,
+        "unlockPrice": 25000,
+        "icon": "🍆",
+        "growingColor": "#e1bee7",
+        "readyColor": "#8e24aa"
+    },
+    "sunflowers": {
+        "id": "sunflowers",
+        "name": "Sunflowers",
+        "growTime": 300,
+        "yield": 2,
+        "sellPrice": 800,
+        "unlockPrice": 75000,
+        "icon": "🌻",
+        "growingColor": "#c5e1a5",
+        "readyColor": "#fdd835"
+    },
+    "starfruit": {
+        "id": "starfruit",
+        "name": "Starfruit",
+        "growTime": 600,
+        "yield": 2,
+        "sellPrice": 3000,
+        "unlockPrice": 250000,
+        "icon": "⭐",
+        "growingColor": "#bbdefb",
+        "readyColor": "#ffee58"
     }
 }

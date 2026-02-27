@@ -106,7 +106,12 @@ function generateUI() {
     const seedSelector = document.getElementById('seed-selector-container');
     const unlockContainer = document.getElementById('unlock-buttons-container');
 
-    statsContainer.innerHTML = `<div>💵 Money: $<span id="money">0</span></div>`;
+    // Apply the new CSS classes
+    sellContainer.className = 'sell-grid';
+    seedSelector.className = 'flex-wrap-container';
+    unlockContainer.className = 'flex-wrap-container';
+
+    statsContainer.innerHTML = `<div>💵 Money: $<span id="money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
     sellContainer.innerHTML = '';
     seedSelector.innerHTML = '';
     unlockContainer.innerHTML = '';
@@ -117,26 +122,27 @@ function generateUI() {
         // Stats
         statsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="${cropId}Count">0</span></div>`;
 
-        // Sell Buttons
+        // Sell Buttons (Wrapped in the new .sell-item card)
         sellContainer.innerHTML += `
-            <div style="margin-top: ${index > 0 ? '10px' : '0'};" id="${cropId}SellDiv">
-                <button id="sell${cropId}Btn" onclick="sell('${cropId}', 1)">Sell 1 ${crop.name} ($${crop.sellPrice})</button>
-                <button id="sellAll${cropId}Btn" onclick="sellAll('${cropId}')" style="background-color: #e67e22;">Sell All ${crop.name}</button>
+            <div class="sell-item" id="${cropId}SellDiv">
+                <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${crop.icon} ${crop.name}</div>
+                <button id="sell${cropId}Btn" onclick="sell('${cropId}', 1)">Sell 1 ($${crop.sellPrice})</button>
+                <button id="sellAll${cropId}Btn" onclick="sellAll('${cropId}')" style="background-color: #e67e22;">Sell All</button>
             </div>
         `;
 
         // Radios
         seedSelector.innerHTML += `
-            <label id="${cropId}RadioLabel" style="display:none; margin-right: 10px;">
-                <input type="radio" name="seed" value="${cropId}"> ${crop.name}
+            <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
+                <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
             </label>
         `;
 
         // Unlock Buttons
         if (crop.unlockPrice > 0) {
             unlockContainer.innerHTML += `
-                <button id="buy${cropId}Btn" onclick="unlockCrop('${cropId}')" style="background-color: ${crop.growingColor}; margin-right: 5px; margin-top: 5px;">
-                    Unlock ${crop.name} ($${crop.unlockPrice})
+                <button id="buy${cropId}Btn" onclick="unlockCrop('${cropId}')" style="background-color: ${crop.growingColor}; color: #2c3e50;">
+                    🔓 Unlock ${crop.name} ($${crop.unlockPrice})
                 </button>
             `;
         }
