@@ -6,6 +6,7 @@
     <title>Tile Farm</title>
     <link rel="stylesheet" href="css/styles.css"> 
 </head>
+
 <body>
 
     <div class="panel" id="user-profile" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;">
@@ -19,7 +20,7 @@
         
         <div>
             <button onclick="window.location.href='dukun.html'" style="background-color: #f39c12; margin-right: 10px; color: #2c3e50;">🏺 Dukun Market</button>
-            
+            <button id="mailboxBtn" onclick="openMailbox()" style="background-color: #3498db; margin-right: 10px; border-radius: 4px; padding: 8px 12px; border: none; color: white; font-weight: bold; cursor: pointer;">📮 Mailbox (0)</button>
             <button onclick="window.location.href='stats.html'" style="background-color: #9b59b6; margin-right: 10px;">📊 Stats</button>
             <button id="muteBtn" onclick="toggleMute()" style="margin-right: 10px;">🔊 Mute</button>
             <button onclick="signOut()" style="background-color: #e74c3c; margin: 0;">Sign Out</button>
@@ -58,5 +59,17 @@
     <div id="farm"></div>
 
     <script src="js/game.js"></script> 
+</body>
+<div id="mailbox-modal" style="display:none; position:fixed; top:15%; left:50%; transform:translate(-50%, 0); background-color:#34495e; padding:20px; border-radius:8px; border: 2px solid #3498db; z-index:100; box-shadow:0 0 20px rgba(0,0,0,0.8); width: 90%; max-width: 500px;">
+        <h2 style="margin-top: 0;">📮 Your Mailbox</h2>
+        <div id="mail-container" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; background: #2c3e50; padding: 10px; border-radius: 4px;">
+            <p>Loading mail...</p>
+        </div>
+        <button onclick="closeMailbox()" style="background-color: #e74c3c; width: 100%;">Close Mailbox</button>
+    </div>
+
+    <script src="js/game.js"></script> 
+    <script type="module" src="js/mailbox.js"></script>
+
 </body>
 </html>

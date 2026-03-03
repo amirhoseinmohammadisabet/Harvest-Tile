@@ -338,6 +338,20 @@ function harvestCrop(lotIndex) {
     renderFarm();
 }
 
+// --- Mailbox Receiver ---
+window.receiveMailMoney = function(amount) {
+    state.money += amount;
+    
+    if (state.stats) {
+        state.stats.totalEarned += amount;
+    }
+    
+    playSound('money');
+    updateUI();
+    saveGame();
+    showMessage(`Claimed $${amount} from the market!`);
+};
+
 function sell(cropType, amount = 1) {
     if (state.inventory[cropType] - amount >= 1) { 
         state.inventory[cropType] -= amount;

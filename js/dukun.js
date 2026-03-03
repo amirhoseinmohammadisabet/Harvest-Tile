@@ -183,12 +183,8 @@ window.buyListing = async function(docId, listing) {
     try {
         // 1. Deduct money and add crop locally
         state.money -= totalCost;
-        
-        // Ensure the crop slot exists in inventory just in case
         if (state.inventory[listing.cropId] === undefined) state.inventory[listing.cropId] = 0;
         state.inventory[listing.cropId] += amountToBuy;
-        
-        // Track the money spent for stats!
         if(state.stats) state.stats.totalSpent += totalCost;
         
         saveLocalState();
@@ -196,19 +192,25 @@ window.buyListing = async function(docId, listing) {
 
         const docRef = doc(db, "market_listings", docId);
 
-        // 2. Update or Delete in Firebase
+        // 2. Update or Delete Market Listing
         if (amountToBuy === listing.amount) {
-            // Bought everything, remove listing
             await deleteDoc(docRef);
         } else {
-            // Bought partial, reduce the amount in database
-            await updateDoc(docRef, {
-                amount: listing.amount - amountToBuy
-            });
+            await updateDoc(docRef, { amount: listing.amount - amountToBuy });
         }
         
-        // Note: For a fully functioning economy, we'd also need a way to give the seller their money!
-        // We will add an "inbox" system for that next.
+        // 3. NEW: SEND MAIL TO THE SELLER
+        // We make sure the player isn't buying their own listing before sending mail
+        if (listing.sellerEmail !== currentUser.email) {
+            await addDoc(collection(db, "mailbox"), {
+                recipientEmail: listing.sellerEmail,
+                senderName: currentUser.name,
+                cropId: listing.cropId,
+                amountBought: amountToBuy,
+                moneyEarned: totalCost,
+                timestamp: serverTimestamp()
+            });
+        }
 
         showMessage(`Successfully bought ${amountToBuy} ${crops[listing.cropId].name} for $${totalCost}!`);
     } catch (e) {
