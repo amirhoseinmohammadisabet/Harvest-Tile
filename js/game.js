@@ -66,7 +66,6 @@ function loadGame() {
     if (savedState) {
         const parsedState = JSON.parse(savedState);
         
-        // Handle offline progress for farm
         if (parsedState.lots) {
             parsedState.lots.forEach(lot => {
                 if (lot !== null && lot.timeLeft !== undefined) {
@@ -101,7 +100,6 @@ async function init() {
     if (!checkAuth()) return; 
 
     try {
-        // Load all 3 files
         const resCrops = await fetch('data/crops.json'); 
         const resArtisan = await fetch('data/artisan.json');
         const resMachines = await fetch('data/machines.json');
@@ -110,7 +108,6 @@ async function init() {
         artisanData = await resArtisan.json();
         machinesData = await resMachines.json();
         
-        // Ensure artisan slots exist in inventory
         Object.keys(artisanData).forEach(id => {
             if (state.inventory[id] === undefined) state.inventory[id] = 0;
         });
@@ -138,7 +135,7 @@ function showMessage(msg) {
     messageTimeout = setTimeout(() => msgBox.style.opacity = 0, 3000);
 }
 
-// --- UI Generation & Updates ---
+// --- Tab Switching ---
 function switchTab(tab) {
     const farmView = document.getElementById('farm-view');
     const shedView = document.getElementById('shed-view');
@@ -148,37 +145,52 @@ function switchTab(tab) {
     if (tab === 'farm') {
         farmView.style.display = 'block';
         shedView.style.display = 'none';
-        tabFarmBtn.style.backgroundColor = '#f39c12'; // Active
-        tabShedBtn.style.backgroundColor = '#7f8c8d'; // Inactive
+        tabFarmBtn.style.backgroundColor = '#f39c12'; 
+        tabShedBtn.style.backgroundColor = '#7f8c8d'; 
         updateUI();
         renderFarm();
     } else if (tab === 'shed') {
         farmView.style.display = 'none';
         shedView.style.display = 'block';
-        tabFarmBtn.style.backgroundColor = '#7f8c8d'; // Inactive
-        tabShedBtn.style.backgroundColor = '#8e44ad'; // Active Shed Purple
+        tabFarmBtn.style.backgroundColor = '#7f8c8d'; 
+        tabShedBtn.style.backgroundColor = '#8e44ad'; 
         updateShedUI();
         renderShedFloor();
     }
 }
 
+// --- HTML Generator (Builds BOTH Farm and Shed UI dynamically) ---
 function generateUI() {
+    // 1. FARM ELEMENTS
     const statsContainer = document.getElementById('stats-container');
     const sellContainer = document.getElementById('sell-buttons-container');
     const seedSelector = document.getElementById('seed-selector-container');
     const unlockContainer = document.getElementById('unlock-buttons-container');
 
+    // 2. SHED ELEMENTS
+    const shedStatsContainer = document.getElementById('shed-stats-container');
+    const shedSellContainer = document.getElementById('shed-sell-buttons-container');
+    const shedStoreContainer = document.getElementById('shed-store-container');
+
     sellContainer.className = 'sell-grid';
+    shedSellContainer.className = 'sell-grid';
     seedSelector.className = 'flex-wrap-container';
     unlockContainer.className = 'flex-wrap-container';
 
+    // Reset inner HTML
     statsContainer.innerHTML = `<div>💵 Money: $<span id="money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
+    shedStatsContainer.innerHTML = `<div>💵 Money: $<span id="shed-money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
     sellContainer.innerHTML = '';
+    shedSellContainer.innerHTML = '';
     seedSelector.innerHTML = '';
     unlockContainer.innerHTML = '';
+    shedStoreContainer.innerHTML = '';
 
-    Object.keys(crops).forEach((cropId, index) => {
+    // Populate Farm and Raw Material Stats
+    Object.keys(crops).forEach((cropId) => {
         const crop = crops[cropId];
+        
+        // Farm Stats & Selling
         statsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="${cropId}Count">0</span></div>`;
         sellContainer.innerHTML += `
             <div class="sell-item" id="${cropId}SellDiv">
@@ -187,6 +199,8 @@ function generateUI() {
                 <button id="sellAll${cropId}Btn" onclick="sellAll('${cropId}')" style="background-color: #e67e22;">Sell All</button>
             </div>
         `;
+        
+        // Farm Store & Radios
         seedSelector.innerHTML += `
             <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
                 <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
@@ -199,12 +213,41 @@ function generateUI() {
                 </button>
             `;
         }
+
+        // Add raw crops to Shed Stats so you know what you can load
+        shedStatsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="shed-${cropId}Count">0</span></div>`;
     });
 
+    // Populate Shed Artisan Stats & Selling
+    Object.keys(artisanData).forEach(id => {
+        const item = artisanData[id];
+        shedStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="shed-${id}Count">0</span></div>`;
+        
+        shedSellContainer.innerHTML += `
+            <div class="sell-item" id="${id}SellDiv">
+                <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${item.icon} ${item.name}</div>
+                <button id="sell${id}Btn" onclick="sellArtisan('${id}')">Sell 1 ($${item.sellPrice})</button>
+                <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
+            </div>
+        `;
+    });
+
+    // Populate Shed Store
+    Object.keys(machinesData).forEach(id => {
+        const m = machinesData[id];
+        shedStoreContainer.innerHTML += `
+            <button onclick="buyMachine('${id}')" style="background-color: #9b59b6; color: white;">
+                Buy ${m.icon} ${m.name} ($${m.cost})
+            </button>
+        `;
+    });
+
+    // Default farm radio
     const wheatRadio = document.querySelector('input[value="wheat"]');
     if (wheatRadio) wheatRadio.checked = true;
 }
 
+// --- State Updaters ---
 function updateUI() {
     const moneyDisplay = document.getElementById('money');
     if(moneyDisplay) moneyDisplay.innerText = state.money;
@@ -257,84 +300,35 @@ function updateUI() {
     }
 }
 
-// --- SHED UI & RENDER LOGIC ---
 function updateShedUI() {
-    if (state.shedUnlocked) {
-        document.getElementById('shed-locked').style.display = 'none';
-        document.getElementById('shed-unlocked').style.display = 'block';
+    if (!state.shedUnlocked) return;
+    document.getElementById('shed-locked').style.display = 'none';
+    document.getElementById('shed-unlocked').style.display = 'block';
+
+    const shedMoney = document.getElementById('shed-money');
+    if (shedMoney) shedMoney.innerText = state.money;
+
+    // Update raw crop counts in the Shed stats grid
+    Object.keys(crops).forEach(cropId => {
+        const countSpan = document.getElementById(`shed-${cropId}Count`);
+        if (countSpan) countSpan.innerText = state.inventory[cropId] || 0;
+    });
+
+    // Update Artisan counts and sell buttons
+    Object.keys(artisanData).forEach(id => {
+        const countSpan = document.getElementById(`shed-${id}Count`);
+        if (countSpan) countSpan.innerText = state.inventory[id] || 0;
+
+        const isLow = (state.inventory[id] <= 0); // No "leave 1 seed" rule for artisan goods
+        const sellBtn = document.getElementById(`sell${id}Btn`);
+        const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
         
-        const storageDiv = document.getElementById('artisan-storage');
-        storageDiv.innerHTML = '';
-        Object.keys(artisanData).forEach(id => {
-            const item = artisanData[id];
-            storageDiv.innerHTML += `
-                <div style="background: #34495e; padding: 10px; border-radius: 6px; text-align: center;">
-                    <div style="font-size: 1.2rem; margin-bottom: 5px;">${item.icon} ${item.name}: <strong>${state.inventory[id]}</strong></div>
-                    <button onclick="sellArtisan('${id}')" style="background-color: #2ecc71; color: #2c3e50; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">Sell 1 ($${item.sellPrice})</button>
-                </div>
-            `;
-        });
-
-        const storeDiv = document.getElementById('machine-store');
-        storeDiv.innerHTML = '';
-        Object.keys(machinesData).forEach(id => {
-            const m = machinesData[id];
-            storeDiv.innerHTML += `
-                <button onclick="buyMachine('${id}')" style="background-color: #9b59b6; padding: 10px; font-size: 1rem; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">
-                    Buy ${m.icon} ${m.name} ($${m.cost})
-                </button>
-            `;
-        });
-    }
-}
-
-function renderShedFloor() {
-    if(document.getElementById('shed-view').style.display === 'none') return;
-    const floor = document.getElementById('shed-floor');
-    if(!floor) return;
-    
-    floor.innerHTML = '';
-    const now = Date.now();
-
-    if (state.machines.length === 0) {
-        floor.innerHTML = '<p style="color: #bdc3c7;">Your shed is empty! Buy a machine from the store.</p>';
-        return;
-    }
-
-    state.machines.forEach((machine, index) => {
-        const mData = machinesData[machine.type];
-        const card = document.createElement('div');
-        
-        if (!machine.isProcessing && !machine.isReady) {
-            card.className = 'machine-card';
-            card.innerHTML = `
-                <div style="font-size: 2rem;">${mData.icon}</div>
-                <div style="font-weight: bold;">${mData.name}</div>
-                <div style="font-size: 0.8rem; margin-top: 5px;">Needs ${mData.inputAmount} ${crops[mData.input].name}</div>
-            `;
-            card.onclick = () => loadMachine(index);
-        } else if (machine.isProcessing && !machine.isReady) {
-            const secondsLeft = Math.ceil((machine.finishTime - now) / 1000);
-            card.className = 'machine-card working';
-            card.innerHTML = `
-                <div style="font-size: 2rem;">⚙️</div>
-                <div style="font-weight: bold;">Processing...</div>
-                <div style="font-size: 0.9rem; margin-top: 5px;">⏳ ${secondsLeft}s</div>
-            `;
-        } else if (machine.isReady) {
-            card.className = 'machine-card ready';
-            card.innerHTML = `
-                <div style="font-size: 2rem;">${artisanData[mData.output].icon}</div>
-                <div style="font-weight: bold;">Ready!</div>
-                <div style="font-size: 0.8rem; margin-top: 5px;">Click to Collect</div>
-            `;
-            card.onclick = () => collectMachine(index);
-        }
-        floor.appendChild(card);
+        if (sellBtn) sellBtn.disabled = isLow;
+        if (sellAllBtn) sellAllBtn.disabled = isLow;
     });
 }
 
-// --- FARM LOGIC ---
+// --- Renders ---
 function renderFarm() {
     if(document.getElementById('farm-view').style.display === 'none') return;
     const farmDiv = document.getElementById('farm');
@@ -394,6 +388,68 @@ function renderFarm() {
     });
 }
 
+function renderShedFloor() {
+    if(document.getElementById('shed-view').style.display === 'none') return;
+    const floor = document.getElementById('shed-floor');
+    if(!floor) return;
+    
+    floor.innerHTML = '';
+    const now = Date.now();
+
+    if (state.machines.length === 0) {
+        floor.innerHTML = '<p style="color: #bdc3c7;">Your shed is empty! Buy a machine from the store above.</p>';
+        return;
+    }
+
+    state.machines.forEach((machine, index) => {
+        const mData = machinesData[machine.type];
+        const card = document.createElement('div');
+        card.className = 'machine-card'; 
+        
+        if (!machine.isProcessing && !machine.isReady) {
+            card.innerHTML = `
+                <div style="font-size: 2rem;">${mData.icon}</div>
+                <div style="font-weight: bold;">${mData.name}</div>
+                <div style="font-size: 0.8rem; margin-top: 5px; color: #bdc3c7;">Needs ${mData.inputAmount} ${crops[mData.input].name}</div>
+            `;
+            card.onclick = () => loadMachine(index);
+            
+        } else if (machine.isProcessing && !machine.isReady) {
+            const totalProcessTime = mData.processTime * 1000;
+            const timeRemaining = machine.finishTime - now;
+            const timeElapsed = totalProcessTime - timeRemaining;
+            
+            let percentage = (timeElapsed / totalProcessTime) * 100;
+            if (percentage > 100) percentage = 100;
+            if (percentage < 0) percentage = 0;
+            
+            const secondsLeft = Math.ceil(timeRemaining / 1000);
+            
+            card.style.background = `linear-gradient(to top, rgba(243, 156, 18, 0.5) ${percentage}%, #34495e ${percentage}%)`;
+            card.style.borderColor = '#f39c12';
+            
+            card.innerHTML = `
+                <div style="font-size: 2rem;">⚙️</div>
+                <div style="font-weight: bold;">Processing...</div>
+                <div style="font-size: 0.9rem; margin-top: 5px;">⏳ ${secondsLeft}s</div>
+            `;
+            
+        } else if (machine.isReady) {
+            card.style.background = '#27ae60';
+            card.style.borderColor = '#2ecc71';
+            card.innerHTML = `
+                <div style="font-size: 2rem;">${artisanData[mData.output].icon}</div>
+                <div style="font-weight: bold;">Ready!</div>
+                <div style="font-size: 0.8rem; margin-top: 5px;">Click to Collect</div>
+            `;
+            card.onclick = () => collectMachine(index);
+        }
+        
+        floor.appendChild(card);
+    });
+}
+
+// --- Farm Actions ---
 function handleLotClick(index) {
     const lot = state.lots[index];
     const now = Date.now();
@@ -413,6 +469,7 @@ function plantCrop(lotIndex) {
         state.lots[lotIndex] = { type: seed, finishTime: Date.now() + (crops[seed].growTime * 1000), isReady: false };
         playSound('plant');
         updateUI();
+        updateShedUI();
         renderFarm();
     } else {
         showMessage(`You don't have enough ${crops[seed].name} seeds!`);
@@ -426,6 +483,7 @@ function harvestCrop(lotIndex) {
     state.lots[lotIndex] = null;
     playSound('harvest');
     updateUI();
+    updateShedUI();
     renderFarm();
 }
 
@@ -445,6 +503,27 @@ function harvestAll() {
         playSound('harvest');
         showMessage("Harvested all ready crops!");
         updateUI();
+        updateShedUI();
+        renderFarm();
+    }
+}
+
+function plantAll() {
+    if (!state.planterUnlocked) return;
+    const seed = getSelectedSeed();
+    let plantedAnything = false;
+    for (let i = 0; i < state.lots.length; i++) {
+        if (state.lots[i] === null && state.inventory[seed] >= 1) {
+            state.inventory[seed] -= 1;
+            state.lots[i] = { type: seed, finishTime: Date.now() + (crops[seed].growTime * 1000), isReady: false };
+            plantedAnything = true;
+        }
+    }
+    if (plantedAnything) {
+        playSound('plant');
+        showMessage(`Planted as much ${crops[seed].name} as possible!`);
+        updateUI();
+        updateShedUI();
         renderFarm();
     }
 }
@@ -457,6 +536,7 @@ function sell(cropType, amount = 1) {
         state.stats.totalEarned += earned;
         playSound('money');
         updateUI();
+        updateShedUI();
     } else {
         showMessage(`You must keep at least 1 ${crops[cropType].name} seed!`);
     }
@@ -471,6 +551,7 @@ function sellAll(cropType) {
         state.stats.totalEarned += earned;
         playSound('money');
         updateUI();
+        updateShedUI();
     }
 }
 
@@ -482,6 +563,7 @@ function buyLot() {
         state.lotPrice = Math.floor(state.lotPrice * 1.2);
         playSound('money');
         updateUI();
+        updateShedUI();
         renderFarm();
     } else {
         showMessage("Not enough money!");
@@ -498,6 +580,7 @@ function unlockCrop(cropId) {
         playSound('money');
         showMessage(`${crop.name} unlocked! Received 1 starter seed.`);
         updateUI();
+        updateShedUI();
     } else if (state.unlockedCrops[cropId]) {
         showMessage(`You already unlocked ${crop.name}!`);
     } else {
@@ -525,26 +608,7 @@ function buyPlanter() {
     }
 }
 
-function plantAll() {
-    if (!state.planterUnlocked) return;
-    const seed = getSelectedSeed();
-    let plantedAnything = false;
-    for (let i = 0; i < state.lots.length; i++) {
-        if (state.lots[i] === null && state.inventory[seed] >= 1) {
-            state.inventory[seed] -= 1;
-            state.lots[i] = { type: seed, finishTime: Date.now() + (crops[seed].growTime * 1000), isReady: false };
-            plantedAnything = true;
-        }
-    }
-    if (plantedAnything) {
-        playSound('plant');
-        showMessage(`Planted as much ${crops[seed].name} as possible!`);
-        updateUI();
-        renderFarm();
-    }
-}
-
-// --- SHED ACTIONS ---
+// --- Shed Actions ---
 window.unlockShed = function() {
     if (state.money >= 50000) {
         state.money -= 50000;
@@ -592,7 +656,8 @@ window.loadMachine = function(index) {
         machine.finishTime = Date.now() + (mData.processTime * 1000);
         
         saveGame();
-        updateUI(); // to reflect lost crops
+        updateUI(); 
+        updateShedUI(); 
         renderShedFloor();
     } else {
         showMessage(`You need ${requiredAmount} ${crops[requiredInput].name} to start this machine!`);
@@ -611,9 +676,62 @@ window.collectMachine = function(index) {
     machine.isReady = false;
     machine.finishTime = 0;
 
+    playSound('harvest');
     saveGame();
+    updateUI();
     updateShedUI();
     renderShedFloor();
+}
+
+window.loadAllMachines = function() {
+    let loadedAnything = false;
+    state.machines.forEach((machine) => {
+        if (!machine.isProcessing && !machine.isReady) {
+            const mData = machinesData[machine.type];
+            if (state.inventory[mData.input] >= mData.inputAmount) {
+                state.inventory[mData.input] -= mData.inputAmount;
+                machine.isProcessing = true;
+                machine.finishTime = Date.now() + (mData.processTime * 1000);
+                loadedAnything = true;
+            }
+        }
+    });
+
+    if (loadedAnything) {
+        playSound('plant');
+        showMessage("Started all possible machines!");
+        saveGame();
+        updateUI();
+        updateShedUI();
+        renderShedFloor();
+    } else {
+        showMessage("Not enough raw materials to start any machines!");
+    }
+}
+
+window.collectAllMachines = function() {
+    let collectedAnything = false;
+    state.machines.forEach((machine) => {
+        if (machine.isReady) {
+            const mData = machinesData[machine.type];
+            state.inventory[mData.output] += mData.outputAmount;
+            machine.isProcessing = false;
+            machine.isReady = false;
+            machine.finishTime = 0;
+            collectedAnything = true;
+        }
+    });
+
+    if (collectedAnything) {
+        playSound('harvest');
+        showMessage("Collected all artisan goods!");
+        saveGame();
+        updateUI();
+        updateShedUI();
+        renderShedFloor();
+    } else {
+        showMessage("No machines are ready yet!");
+    }
 }
 
 window.sellArtisan = function(itemId) {
@@ -621,11 +739,30 @@ window.sellArtisan = function(itemId) {
         state.inventory[itemId] -= 1;
         const earned = artisanData[itemId].sellPrice;
         state.money += earned;
-        state.stats.totalEarned += earned;
+        if(state.stats) state.stats.totalEarned += earned;
+        
         playSound('money');
         saveGame();
-        updateUI(); // updates money in farm view
-        updateShedUI(); // updates inventory in shed view
+        updateUI(); 
+        updateShedUI(); 
+    } else {
+        showMessage("You don't have any to sell!");
+    }
+}
+
+window.sellAllArtisan = function(itemId) {
+    if (state.inventory[itemId] >= 1) {
+        const amountToSell = state.inventory[itemId]; 
+        state.inventory[itemId] -= amountToSell;
+        
+        const earned = artisanData[itemId].sellPrice * amountToSell;
+        state.money += earned;
+        if(state.stats) state.stats.totalEarned += earned;
+        
+        playSound('money');
+        saveGame();
+        updateUI(); 
+        updateShedUI(); 
     } else {
         showMessage("You don't have any to sell!");
     }

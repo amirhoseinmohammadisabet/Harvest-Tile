@@ -41,7 +41,7 @@
 
     <div id="farm-view">
         <div class="panel">
-            <h1 style="margin-bottom: 10px;">Tile Farm</h1>
+            <h1 style="margin-bottom: 10px; margin-top: 0;">Tile Farm</h1>
             <div class="stats-grid" id="stats-container"></div>
             <div id="sell-buttons-container" class="sell-grid"></div>
         </div>
@@ -75,21 +75,25 @@
         </div>
 
         <div id="shed-unlocked" style="display: none;">
+            
             <div class="panel">
-                <h2>📦 Artisan Storage</h2>
-                <div id="artisan-storage" class="flex-wrap-container"></div>
+                <h1 style="margin-bottom: 10px; margin-top: 0;">The Shed</h1>
+                <div class="stats-grid" id="shed-stats-container"></div>
+                <div id="shed-sell-buttons-container" class="sell-grid"></div>
             </div>
 
             <div class="panel">
-                <h2>🛒 Machine Store</h2>
-                <div id="machine-store" class="flex-wrap-container"></div>
+                <h2>Store & Tools</h2>
+                <div id="shed-store-container" class="flex-wrap-container" style="margin-bottom: 15px;"></div>
+                
+                <hr style="border: 1px solid #2c3e50; margin-bottom: 15px;">
+                
+                <button onclick="collectAllMachines()" style="background-color: #27ae60;">📦 Collect All Ready</button>
+                <button onclick="loadAllMachines()" style="background-color: #f39c12;">⚙️ Start All Available</button>
             </div>
 
-            <div class="panel">
-                <h2>🏭 Shed Floor</h2>
-                <div id="shed-floor" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
-                    </div>
-            </div>
+            <div id="shed-floor" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
+                </div>
         </div>
     </div>
 
