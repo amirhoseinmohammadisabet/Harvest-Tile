@@ -2,7 +2,7 @@
 let currentUser = null;
 let saveKey = 'tileFarmSave_guest'; 
 
-// 1. DYNAMIC STATE
+// DYNAMIC STATE
 let state = {
     money: 0,
     inventory: { wheat: 2 },
@@ -12,13 +12,16 @@ let state = {
     scytheUnlocked: false,
     planterUnlocked: false,
     muted: false,
-    stats: { totalHarvested: 0, totalEarned: 0, totalSpent: 0 }
+    stats: { totalHarvested: 0, totalEarned: 0, totalSpent: 0 },
+    shedUnlocked: false,
+    machines: []
 };
 
 let crops = {}; 
+let artisanData = {};
+let machinesData = {};
 let messageTimeout;
 
-// 2. UPDATED AUDIO PATHS
 const sounds = {
     plant: new Audio('assets/audio/plant.mp3'),
     harvest: new Audio('assets/audio/harvest.mp3'),
@@ -63,7 +66,7 @@ function loadGame() {
     if (savedState) {
         const parsedState = JSON.parse(savedState);
         
-        // Handle offline progress
+        // Handle offline progress for farm
         if (parsedState.lots) {
             parsedState.lots.forEach(lot => {
                 if (lot !== null && lot.timeLeft !== undefined) {
@@ -73,40 +76,98 @@ function loadGame() {
             });
         }
         
-        // Load state
         state = { ...state, ...parsedState }; 
         if (parsedState.inventory) state.inventory = { ...state.inventory, ...parsedState.inventory };
         if (parsedState.unlockedCrops) state.unlockedCrops = { ...state.unlockedCrops, ...parsedState.unlockedCrops };
         if (parsedState.stats) state.stats = { ...state.stats, ...parsedState.stats };
+        
+        if (parsedState.shedUnlocked !== undefined) state.shedUnlocked = parsedState.shedUnlocked;
+        if (parsedState.machines) state.machines = parsedState.machines;
 
-        // 3. MIGRATION FOR OLD SAVE FILES
-        if (parsedState.hopsUnlocked) state.unlockedCrops.hops = true;
-        if (parsedState.pumpkinsUnlocked) state.unlockedCrops.pumpkins = true;
-        if (parsedState.watermelonsUnlocked) state.unlockedCrops.watermelons = true;
-
-        // Ensure all crops exist in inventory
         Object.keys(crops).forEach(cropId => {
             if (state.inventory[cropId] === undefined) state.inventory[cropId] = 0;
             if (state.unlockedCrops[cropId] === undefined) state.unlockedCrops[cropId] = (cropId === 'wheat');
             
-            // Smarter Rescue
             const growing = state.lots.filter(lot => lot && lot.type === cropId).length;
             if (state.unlockedCrops[cropId] && state.inventory[cropId] <= 0 && growing === 0) {
                 state.inventory[cropId] = 1;
-                console.log(`Save fixed: Restored 1 ${crops[cropId].name} seed!`);
             }
         });
     }
 }
 
-// --- Dynamic UI Generation ---
+// --- Initialization ---
+async function init() {
+    if (!checkAuth()) return; 
+
+    try {
+        // Load all 3 files
+        const resCrops = await fetch('data/crops.json'); 
+        const resArtisan = await fetch('data/artisan.json');
+        const resMachines = await fetch('data/machines.json');
+        
+        crops = await resCrops.json();
+        artisanData = await resArtisan.json();
+        machinesData = await resMachines.json();
+        
+        // Ensure artisan slots exist in inventory
+        Object.keys(artisanData).forEach(id => {
+            if (state.inventory[id] === undefined) state.inventory[id] = 0;
+        });
+
+        generateUI(); 
+        loadGame();
+        updateMuteButton();
+        updateUI();
+        updateShedUI();
+        renderFarm();
+        renderShedFloor();
+        startGameLoop();
+    } catch (error) {
+        console.error("Failed to load data:", error);
+        showMessage("Error loading game data!");
+    }
+}
+
+function showMessage(msg) {
+    const msgBox = document.getElementById('message-box');
+    if (!msgBox) return; 
+    msgBox.innerText = msg;
+    msgBox.style.opacity = 1;
+    clearTimeout(messageTimeout);
+    messageTimeout = setTimeout(() => msgBox.style.opacity = 0, 3000);
+}
+
+// --- UI Generation & Updates ---
+function switchTab(tab) {
+    const farmView = document.getElementById('farm-view');
+    const shedView = document.getElementById('shed-view');
+    const tabFarmBtn = document.getElementById('tab-farm');
+    const tabShedBtn = document.getElementById('tab-shed');
+
+    if (tab === 'farm') {
+        farmView.style.display = 'block';
+        shedView.style.display = 'none';
+        tabFarmBtn.style.backgroundColor = '#f39c12'; // Active
+        tabShedBtn.style.backgroundColor = '#7f8c8d'; // Inactive
+        updateUI();
+        renderFarm();
+    } else if (tab === 'shed') {
+        farmView.style.display = 'none';
+        shedView.style.display = 'block';
+        tabFarmBtn.style.backgroundColor = '#7f8c8d'; // Inactive
+        tabShedBtn.style.backgroundColor = '#8e44ad'; // Active Shed Purple
+        updateShedUI();
+        renderShedFloor();
+    }
+}
+
 function generateUI() {
     const statsContainer = document.getElementById('stats-container');
     const sellContainer = document.getElementById('sell-buttons-container');
     const seedSelector = document.getElementById('seed-selector-container');
     const unlockContainer = document.getElementById('unlock-buttons-container');
 
-    // Apply the new CSS classes
     sellContainer.className = 'sell-grid';
     seedSelector.className = 'flex-wrap-container';
     unlockContainer.className = 'flex-wrap-container';
@@ -118,11 +179,7 @@ function generateUI() {
 
     Object.keys(crops).forEach((cropId, index) => {
         const crop = crops[cropId];
-
-        // Stats
         statsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="${cropId}Count">0</span></div>`;
-
-        // Sell Buttons (Wrapped in the new .sell-item card)
         sellContainer.innerHTML += `
             <div class="sell-item" id="${cropId}SellDiv">
                 <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${crop.icon} ${crop.name}</div>
@@ -130,15 +187,11 @@ function generateUI() {
                 <button id="sellAll${cropId}Btn" onclick="sellAll('${cropId}')" style="background-color: #e67e22;">Sell All</button>
             </div>
         `;
-
-        // Radios
         seedSelector.innerHTML += `
             <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
                 <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
             </label>
         `;
-
-        // Unlock Buttons
         if (crop.unlockPrice > 0) {
             unlockContainer.innerHTML += `
                 <button id="buy${cropId}Btn" onclick="unlockCrop('${cropId}')" style="background-color: ${crop.growingColor}; color: #2c3e50;">
@@ -148,57 +201,21 @@ function generateUI() {
         }
     });
 
-    // Default to wheat
     const wheatRadio = document.querySelector('input[value="wheat"]');
     if (wheatRadio) wheatRadio.checked = true;
 }
 
-// --- Initialization ---
-async function init() {
-    if (!checkAuth()) return; 
-
-    try {
-        // UPDATED PATH
-        const response = await fetch('data/crops.json'); 
-        crops = await response.json();
-        
-        generateUI(); // Build HTML dynamically
-        loadGame();
-        updateMuteButton();
-        updateUI();
-        renderFarm();
-        startGameLoop();
-    } catch (error) {
-        console.error("Failed to load crops data:", error);
-        showMessage("Error loading game data!");
-    }
-}
-
-function showMessage(msg) {
-    const msgBox = document.getElementById('message-box');
-    if (!msgBox) return; 
-    msgBox.innerText = msg;
-    msgBox.style.opacity = 1;
-    
-    clearTimeout(messageTimeout);
-    messageTimeout = setTimeout(() => {
-        msgBox.style.opacity = 0;
-    }, 3000);
-}
-
 function updateUI() {
-    document.getElementById('money').innerText = state.money;
-
+    const moneyDisplay = document.getElementById('money');
+    if(moneyDisplay) moneyDisplay.innerText = state.money;
+    
     const buyLotBtn = document.querySelector('button[onclick="buyLot()"]');
     if (buyLotBtn) buyLotBtn.innerText = `Buy Empty Lot ($${state.lotPrice})`;
 
-    // DYNAMIC LOOP FOR ALL CROPS
     Object.keys(crops).forEach(cropId => {
-        // Stats
         const countSpan = document.getElementById(`${cropId}Count`);
         if (countSpan) countSpan.innerText = state.inventory[cropId] || 0;
 
-        // Radios and Unlock Buttons
         const radioLabel = document.getElementById(`${cropId}RadioLabel`);
         const unlockBtn = document.getElementById(`buy${cropId}Btn`);
         
@@ -210,7 +227,6 @@ function updateUI() {
             if (unlockBtn) unlockBtn.style.display = 'inline-block';
         }
 
-        // Sell Buttons Safety Lock
         const isLow = (state.inventory[cropId] <= 1);
         const sellBtn = document.getElementById(`sell${cropId}Btn`);
         const sellAllBtn = document.getElementById(`sellAll${cropId}Btn`);
@@ -224,7 +240,6 @@ function updateUI() {
         }
     });
 
-    // Tools Logic
     if (state.scytheUnlocked) {
         document.getElementById('buyScytheBtn').style.display = 'none';
         document.getElementById('harvestAllBtn').style.display = 'inline-block';
@@ -242,7 +257,86 @@ function updateUI() {
     }
 }
 
+// --- SHED UI & RENDER LOGIC ---
+function updateShedUI() {
+    if (state.shedUnlocked) {
+        document.getElementById('shed-locked').style.display = 'none';
+        document.getElementById('shed-unlocked').style.display = 'block';
+        
+        const storageDiv = document.getElementById('artisan-storage');
+        storageDiv.innerHTML = '';
+        Object.keys(artisanData).forEach(id => {
+            const item = artisanData[id];
+            storageDiv.innerHTML += `
+                <div style="background: #34495e; padding: 10px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 1.2rem; margin-bottom: 5px;">${item.icon} ${item.name}: <strong>${state.inventory[id]}</strong></div>
+                    <button onclick="sellArtisan('${id}')" style="background-color: #2ecc71; color: #2c3e50; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">Sell 1 ($${item.sellPrice})</button>
+                </div>
+            `;
+        });
+
+        const storeDiv = document.getElementById('machine-store');
+        storeDiv.innerHTML = '';
+        Object.keys(machinesData).forEach(id => {
+            const m = machinesData[id];
+            storeDiv.innerHTML += `
+                <button onclick="buyMachine('${id}')" style="background-color: #9b59b6; padding: 10px; font-size: 1rem; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">
+                    Buy ${m.icon} ${m.name} ($${m.cost})
+                </button>
+            `;
+        });
+    }
+}
+
+function renderShedFloor() {
+    if(document.getElementById('shed-view').style.display === 'none') return;
+    const floor = document.getElementById('shed-floor');
+    if(!floor) return;
+    
+    floor.innerHTML = '';
+    const now = Date.now();
+
+    if (state.machines.length === 0) {
+        floor.innerHTML = '<p style="color: #bdc3c7;">Your shed is empty! Buy a machine from the store.</p>';
+        return;
+    }
+
+    state.machines.forEach((machine, index) => {
+        const mData = machinesData[machine.type];
+        const card = document.createElement('div');
+        
+        if (!machine.isProcessing && !machine.isReady) {
+            card.className = 'machine-card';
+            card.innerHTML = `
+                <div style="font-size: 2rem;">${mData.icon}</div>
+                <div style="font-weight: bold;">${mData.name}</div>
+                <div style="font-size: 0.8rem; margin-top: 5px;">Needs ${mData.inputAmount} ${crops[mData.input].name}</div>
+            `;
+            card.onclick = () => loadMachine(index);
+        } else if (machine.isProcessing && !machine.isReady) {
+            const secondsLeft = Math.ceil((machine.finishTime - now) / 1000);
+            card.className = 'machine-card working';
+            card.innerHTML = `
+                <div style="font-size: 2rem;">⚙️</div>
+                <div style="font-weight: bold;">Processing...</div>
+                <div style="font-size: 0.9rem; margin-top: 5px;">⏳ ${secondsLeft}s</div>
+            `;
+        } else if (machine.isReady) {
+            card.className = 'machine-card ready';
+            card.innerHTML = `
+                <div style="font-size: 2rem;">${artisanData[mData.output].icon}</div>
+                <div style="font-weight: bold;">Ready!</div>
+                <div style="font-size: 0.8rem; margin-top: 5px;">Click to Collect</div>
+            `;
+            card.onclick = () => collectMachine(index);
+        }
+        floor.appendChild(card);
+    });
+}
+
+// --- FARM LOGIC ---
 function renderFarm() {
+    if(document.getElementById('farm-view').style.display === 'none') return;
     const farmDiv = document.getElementById('farm');
     
     if (farmDiv.children.length !== state.lots.length) {
@@ -283,7 +377,6 @@ function renderFarm() {
                 const growCol = crops[lot.type].growingColor;
                 tile.style.background = `linear-gradient(to top, ${readyCol} ${percentage}%, ${growCol} ${percentage}%)`;
                 tile.style.borderColor = 'rgba(0,0,0,0.2)';
-                
                 tile.innerHTML = `
                     <div>${crops[lot.type].name}</div>
                     <div style="font-size: 0.9em; margin-top: 5px;">⏳ ${secondsLeft}s</div>
@@ -329,37 +422,39 @@ function plantCrop(lotIndex) {
 function harvestCrop(lotIndex) {
     const cropType = state.lots[lotIndex].type;
     state.inventory[cropType] += crops[cropType].yield;
-    
-    state.stats.totalHarvested += crops[cropType].yield; 
-    
+    state.stats.totalHarvested += crops[cropType].yield;
     state.lots[lotIndex] = null;
     playSound('harvest');
     updateUI();
     renderFarm();
 }
 
-// --- Mailbox Receiver ---
-window.receiveMailMoney = function(amount) {
-    state.money += amount;
-    
-    if (state.stats) {
-        state.stats.totalEarned += amount;
+function harvestAll() {
+    if (!state.scytheUnlocked) return;
+    const now = Date.now();
+    let harvestedAnything = false;
+    state.lots.forEach((lot, index) => {
+        if (lot !== null && lot.finishTime <= now) {
+            state.inventory[lot.type] += crops[lot.type].yield;
+            state.stats.totalHarvested += crops[lot.type].yield;
+            state.lots[index] = null; 
+            harvestedAnything = true;
+        }
+    });
+    if (harvestedAnything) {
+        playSound('harvest');
+        showMessage("Harvested all ready crops!");
+        updateUI();
+        renderFarm();
     }
-    
-    playSound('money');
-    updateUI();
-    saveGame();
-    showMessage(`Claimed $${amount} from the market!`);
-};
+}
 
 function sell(cropType, amount = 1) {
     if (state.inventory[cropType] - amount >= 1) { 
         state.inventory[cropType] -= amount;
-        
         const earned = (crops[cropType].sellPrice * amount);
         state.money += earned;
-        state.stats.totalEarned += earned; 
-        
+        state.stats.totalEarned += earned;
         playSound('money');
         updateUI();
     } else {
@@ -371,11 +466,9 @@ function sellAll(cropType) {
     if (state.inventory[cropType] > 1) {
         const amountToSell = state.inventory[cropType] - 1;
         state.inventory[cropType] -= amountToSell;
-        
         const earned = (crops[cropType].sellPrice * amountToSell);
         state.money += earned;
-        state.stats.totalEarned += earned; 
-        
+        state.stats.totalEarned += earned;
         playSound('money');
         updateUI();
     }
@@ -384,7 +477,7 @@ function sellAll(cropType) {
 function buyLot() {
     if (state.money >= state.lotPrice) {
         state.money -= state.lotPrice;
-        state.stats.totalSpent += state.lotPrice; 
+        state.stats.totalSpent += state.lotPrice;
         state.lots.push(null);
         state.lotPrice = Math.floor(state.lotPrice * 1.2);
         playSound('money');
@@ -395,12 +488,11 @@ function buyLot() {
     }
 }
 
-// 4. UNIFIED UNLOCK FUNCTION
 function unlockCrop(cropId) {
     const crop = crops[cropId];
     if (state.money >= crop.unlockPrice && !state.unlockedCrops[cropId]) {
         state.money -= crop.unlockPrice;
-        state.stats.totalSpent += crop.unlockPrice; 
+        state.stats.totalSpent += crop.unlockPrice;
         state.unlockedCrops[cropId] = true;
         state.inventory[cropId] += 1; 
         playSound('money');
@@ -416,39 +508,17 @@ function unlockCrop(cropId) {
 function buyScythe() {
     if (state.money >= 500 && !state.scytheUnlocked) {
         state.money -= 500;
-        state.stats.totalSpent += 500; 
+        state.stats.totalSpent += 500;
         state.scytheUnlocked = true;
         showMessage("Scythe unlocked!");
         updateUI();
     }
 }
 
-function harvestAll() {
-    if (!state.scytheUnlocked) return;
-    const now = Date.now();
-    let harvestedAnything = false;
-    state.lots.forEach((lot, index) => {
-        if (lot !== null && lot.finishTime <= now) {
-            state.inventory[lot.type] += crops[lot.type].yield;
-            
-            state.stats.totalHarvested += crops[lot.type].yield; 
-
-            state.lots[index] = null; 
-            harvestedAnything = true;
-        }
-    });
-    if (harvestedAnything) {
-        playSound('harvest');
-        showMessage("Harvested all ready crops!");
-        updateUI();
-        renderFarm();
-    }
-}
-
 function buyPlanter() {
     if (state.money >= 1000 && !state.planterUnlocked) {
         state.money -= 1000;
-        state.stats.totalSpent += 1000; 
+        state.stats.totalSpent += 1000;
         state.planterUnlocked = true;
         showMessage("Planting Machine unlocked!");
         updateUI();
@@ -474,6 +544,104 @@ function plantAll() {
     }
 }
 
+// --- SHED ACTIONS ---
+window.unlockShed = function() {
+    if (state.money >= 50000) {
+        state.money -= 50000;
+        state.stats.totalSpent += 50000;
+        state.shedUnlocked = true;
+        saveGame();
+        updateUI();
+        updateShedUI();
+    } else {
+        showMessage("Not enough money! You need $50,000.");
+    }
+}
+
+window.buyMachine = function(machineId) {
+    const mData = machinesData[machineId];
+    if (state.money >= mData.cost) {
+        state.money -= mData.cost;
+        state.stats.totalSpent += mData.cost;
+        
+        state.machines.push({
+            type: machineId,
+            isProcessing: false,
+            isReady: false,
+            finishTime: 0
+        });
+        
+        saveGame();
+        updateUI();
+        updateShedUI();
+        renderShedFloor();
+    } else {
+        showMessage(`Not enough money! You need $${mData.cost}.`);
+    }
+}
+
+window.loadMachine = function(index) {
+    const machine = state.machines[index];
+    const mData = machinesData[machine.type];
+    const requiredInput = mData.input;
+    const requiredAmount = mData.inputAmount;
+
+    if (state.inventory[requiredInput] >= requiredAmount) {
+        state.inventory[requiredInput] -= requiredAmount;
+        machine.isProcessing = true;
+        machine.finishTime = Date.now() + (mData.processTime * 1000);
+        
+        saveGame();
+        updateUI(); // to reflect lost crops
+        renderShedFloor();
+    } else {
+        showMessage(`You need ${requiredAmount} ${crops[requiredInput].name} to start this machine!`);
+    }
+}
+
+window.collectMachine = function(index) {
+    const machine = state.machines[index];
+    const mData = machinesData[machine.type];
+    const outputItem = mData.output;
+    const outputAmount = mData.outputAmount;
+
+    state.inventory[outputItem] += outputAmount;
+    
+    machine.isProcessing = false;
+    machine.isReady = false;
+    machine.finishTime = 0;
+
+    saveGame();
+    updateShedUI();
+    renderShedFloor();
+}
+
+window.sellArtisan = function(itemId) {
+    if (state.inventory[itemId] >= 1) {
+        state.inventory[itemId] -= 1;
+        const earned = artisanData[itemId].sellPrice;
+        state.money += earned;
+        state.stats.totalEarned += earned;
+        playSound('money');
+        saveGame();
+        updateUI(); // updates money in farm view
+        updateShedUI(); // updates inventory in shed view
+    } else {
+        showMessage("You don't have any to sell!");
+    }
+}
+
+// --- Mailbox Receiver ---
+window.receiveMailMoney = function(amount) {
+    state.money += amount;
+    if (state.stats) state.stats.totalEarned += amount;
+    playSound('money');
+    updateUI();
+    updateShedUI();
+    saveGame();
+    showMessage(`Claimed $${amount} from the market!`);
+};
+
 function toggleMute() {
     state.muted = !state.muted; 
     updateMuteButton();
@@ -492,22 +660,43 @@ function updateMuteButton() {
     }
 }
 
+// --- Master Game Loop ---
 function startGameLoop() {
     setInterval(() => {
-        let needsRender = false;
+        let needsFarmRender = false;
+        let needsShedRender = false;
         const now = Date.now();
+        
+        // Tick Farm
         state.lots.forEach(lot => {
             if (lot !== null) {
                 const secondsLeft = Math.ceil((lot.finishTime - now) / 1000);
-                if (secondsLeft > 0) needsRender = true;
+                if (secondsLeft > 0) needsFarmRender = true;
                 else if (!lot.isReady) {
                     lot.isReady = true; 
-                    needsRender = true; 
+                    needsFarmRender = true; 
                 }
             }
         });
+
+        // Tick Shed
+        if (state.shedUnlocked && state.machines.length > 0) {
+            state.machines.forEach(machine => {
+                if (machine.isProcessing && !machine.isReady) {
+                    if (now >= machine.finishTime) {
+                        machine.isReady = true;
+                        needsShedRender = true;
+                    } else {
+                        needsShedRender = true; 
+                    }
+                }
+            });
+        }
+        
         saveGame();
-        if (needsRender) renderFarm();
+        if (needsFarmRender) renderFarm();
+        if (needsShedRender) renderShedFloor();
+        
     }, 1000);
 }
 

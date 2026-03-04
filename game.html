@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tile Farm</title>
     <link rel="stylesheet" href="css/styles.css"> 
+    <style>
+        .machine-card { background-color: #34495e; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #7f8c8d; cursor: pointer; transition: transform 0.1s;}
+        .machine-card:active { transform: scale(0.95); }
+        .machine-card.ready { border-color: #2ecc71; background-color: #27ae60; }
+        .machine-card.working { border-color: #f39c12; }
+    </style>
 </head>
-
 <body>
 
     <div class="panel" id="user-profile" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;">
@@ -20,47 +25,75 @@
         
         <div>
             <button onclick="window.location.href='dukun.html'" style="background-color: #f39c12; margin-right: 10px; color: #2c3e50;">🏺 Dukun Market</button>
-            <button id="mailboxBtn" onclick="openMailbox()" style="background-color: #3498db; margin-right: 10px; border-radius: 4px; padding: 8px 12px; border: none; color: white; font-weight: bold; cursor: pointer;">📮 Mailbox (0)</button>
+            <button id="mailboxBtn" onclick="openMailbox()" style="background-color: #3498db; margin-right: 10px;">📮 Mailbox (0)</button>
             <button onclick="window.location.href='stats.html'" style="background-color: #9b59b6; margin-right: 10px;">📊 Stats</button>
             <button id="muteBtn" onclick="toggleMute()" style="margin-right: 10px;">🔊 Mute</button>
             <button onclick="signOut()" style="background-color: #e74c3c; margin: 0;">Sign Out</button>
         </div>
     </div>
 
+    <div class="panel" style="display: flex; justify-content: center; gap: 20px; padding: 10px; background-color: #2c3e50; border-bottom: 3px solid #34495e;">
+        <button id="tab-farm" onclick="switchTab('farm')" style="background-color: #f39c12; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🌾 The Farm</button>
+        <button id="tab-shed" onclick="switchTab('shed')" style="background-color: #7f8c8d; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🛖 The Shed</button>
+    </div>
+
     <div id="message-box" class="message-box"></div>
 
-    <div class="panel">
-        <h1>Tile Farm</h1>
-        <div class="stats-grid" id="stats-container">
-            <div>💵 Money: $<span id="money">0</span></div>
+    <div id="farm-view">
+        <div class="panel">
+            <h1 style="margin-bottom: 10px;">Tile Farm</h1>
+            <div class="stats-grid" id="stats-container"></div>
+            <div id="sell-buttons-container" class="sell-grid"></div>
         </div>
-        
-        <div id="sell-buttons-container"></div>
+
+        <div class="panel">
+            <h2>Store & Tools</h2>
+            <div style="margin-bottom: 10px;">
+                <strong>Currently Selected Seed:</strong>
+                <span id="seed-selector-container" class="flex-wrap-container"></span>
+            </div>
+            
+            <div id="unlock-buttons-container" class="flex-wrap-container" style="margin-bottom: 15px;"></div>
+            <hr style="border: 1px solid #2c3e50; margin-bottom: 15px;">
+            
+            <button onclick="buyLot()">Buy Empty Lot ($15)</button>
+            <button id="buyScytheBtn" onclick="buyScythe()" style="background-color: #8e44ad;">Buy Scythe ($500)</button>
+            <button id="harvestAllBtn" onclick="harvestAll()" style="display:none; background-color: #27ae60;">🌾 Harvest All</button>
+            <button id="buyPlanterBtn" onclick="buyPlanter()" style="background-color: #d35400;">Buy Planting Machine ($1000)</button>
+            <button id="plantAllBtn" onclick="plantAll()" style="display:none; background-color: #f39c12;">🚜 Plant All</button>
+        </div>
+
+        <div id="farm"></div>
     </div>
 
-    <div class="panel">
-        <h2>Store & Tools</h2>
-        <div style="margin-bottom: 10px;">
-            <strong>Currently Selected Seed:</strong>
-            <span id="seed-selector-container"></span>
+    <div id="shed-view" style="display: none;">
+        
+        <div id="shed-locked" class="panel" style="text-align: center; padding: 40px;">
+            <h2>The Shed is Locked!</h2>
+            <p style="color: #bdc3c7;">Unlock the Shed to start processing raw crops into expensive artisan goods.</p>
+            <button onclick="unlockShed()" style="background-color: #e67e22; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px;">🔨 Build Shed ($50,000)</button>
         </div>
-        
-        <div id="unlock-buttons-container" style="margin-bottom: 15px;"></div>
-        
-        <hr style="border: 1px solid #2c3e50; margin-bottom: 15px;">
-        
-        <button onclick="buyLot()">Buy Empty Lot ($15)</button>
-        <button id="buyScytheBtn" onclick="buyScythe()" style="background-color: #8e44ad;">Buy Scythe ($500)</button>
-        <button id="harvestAllBtn" onclick="harvestAll()" style="display:none; background-color: #27ae60;">🌾 Harvest All</button>
-        <button id="buyPlanterBtn" onclick="buyPlanter()" style="background-color: #d35400;">Buy Planting Machine ($1000)</button>
-        <button id="plantAllBtn" onclick="plantAll()" style="display:none; background-color: #f39c12;">🚜 Plant All</button>
+
+        <div id="shed-unlocked" style="display: none;">
+            <div class="panel">
+                <h2>📦 Artisan Storage</h2>
+                <div id="artisan-storage" class="flex-wrap-container"></div>
+            </div>
+
+            <div class="panel">
+                <h2>🛒 Machine Store</h2>
+                <div id="machine-store" class="flex-wrap-container"></div>
+            </div>
+
+            <div class="panel">
+                <h2>🏭 Shed Floor</h2>
+                <div id="shed-floor" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
+                    </div>
+            </div>
+        </div>
     </div>
 
-    <div id="farm"></div>
-
-    <script src="js/game.js"></script> 
-</body>
-<div id="mailbox-modal" style="display:none; position:fixed; top:15%; left:50%; transform:translate(-50%, 0); background-color:#34495e; padding:20px; border-radius:8px; border: 2px solid #3498db; z-index:100; box-shadow:0 0 20px rgba(0,0,0,0.8); width: 90%; max-width: 500px;">
+    <div id="mailbox-modal" style="display:none; position:fixed; top:15%; left:50%; transform:translate(-50%, 0); background-color:#34495e; padding:20px; border-radius:8px; border: 2px solid #3498db; z-index:100; box-shadow:0 0 20px rgba(0,0,0,0.8); width: 90%; max-width: 500px;">
         <h2 style="margin-top: 0;">📮 Your Mailbox</h2>
         <div id="mail-container" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; background: #2c3e50; padding: 10px; border-radius: 4px;">
             <p>Loading mail...</p>
@@ -70,6 +103,5 @@
 
     <script src="js/game.js"></script> 
     <script type="module" src="js/mailbox.js"></script>
-
 </body>
 </html>

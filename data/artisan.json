@@ -1,0 +1,18 @@
+{
+    "beer": {
+        "id": "beer",
+        "name": "Beer",
+        "sellPrice": 40,
+        "unlockPrice": 0,
+        "icon": "🍺",
+        "isArtisan": true
+    },
+    "strawberry_juice": {
+        "id": "strawberry_juice",
+        "name": "Strawberry Juice",
+        "sellPrice": 120,
+        "unlockPrice": 0,
+        "icon": "🧃",
+        "isArtisan": true
+    }
+}
