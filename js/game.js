@@ -37,6 +37,18 @@ function playSound(name) {
     }
 }
 
+// --- Time Formatter ---
+function formatTime(totalSeconds) {
+    if (totalSeconds <= 0) return "0s";
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = Math.floor(totalSeconds % 60);
+    
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+}
+
 function checkAuth() {
     const storedUser = localStorage.getItem('farmCurrentUser');
     if (!storedUser) {
@@ -159,23 +171,36 @@ function showMessage(msg) {
 function switchTab(tab) {
     const farmView = document.getElementById('farm-view');
     const shedView = document.getElementById('shed-view');
+    const invView = document.getElementById('inventory-view');
+    
     const tabFarmBtn = document.getElementById('tab-farm');
     const tabShedBtn = document.getElementById('tab-shed');
+    const tabInvBtn = document.getElementById('tab-inventory');
 
+    // Hide everything and reset buttons first
+    farmView.style.display = 'none';
+    shedView.style.display = 'none';
+    if (invView) invView.style.display = 'none';
+    
+    tabFarmBtn.style.backgroundColor = '#7f8c8d'; 
+    tabShedBtn.style.backgroundColor = '#7f8c8d'; 
+    if (tabInvBtn) tabInvBtn.style.backgroundColor = '#7f8c8d';
+
+    // Show the requested tab
     if (tab === 'farm') {
         farmView.style.display = 'block';
-        shedView.style.display = 'none';
         tabFarmBtn.style.backgroundColor = '#f39c12'; 
-        tabShedBtn.style.backgroundColor = '#7f8c8d'; 
         updateUI();
         renderFarm();
     } else if (tab === 'shed') {
-        farmView.style.display = 'none';
         shedView.style.display = 'block';
-        tabFarmBtn.style.backgroundColor = '#7f8c8d'; 
         tabShedBtn.style.backgroundColor = '#8e44ad'; 
         updateShedUI();
         renderShedFloor();
+    } else if (tab === 'inventory') {
+        if (invView) invView.style.display = 'block';
+        if (tabInvBtn) tabInvBtn.style.backgroundColor = '#2980b9'; // Clean Blue
+        renderInventory();
     }
 }
 
@@ -231,6 +256,7 @@ function generateUI() {
         shedStatsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="shed-${cropId}Count">0</span></div>`;
     });
 
+    // Populate Shed Artisan Stats, Selling, and Selectors
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
         shedStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="shed-${id}Count">0</span></div>`;
@@ -246,7 +272,7 @@ function generateUI() {
         if (artisanSelector) {
             artisanSelector.innerHTML += `
                 <label style="cursor: pointer; padding: 5px 10px; border-radius: 4px; display: inline-block;">
-                    <input type="radio" name="artisan-recipe" value="${id}">
+                    <input type="radio" name="artisan-recipe" value="${id}" onchange="updateRecipeInfo()">
                     ${item.icon} ${item.name}
                 </label>
             `;
@@ -259,6 +285,9 @@ function generateUI() {
     
     const beerRadio = document.querySelector('input[value="beer"]');
     if (beerRadio) beerRadio.checked = true;
+
+    // NEW: Set the initial recipe text when the game loads!
+    updateRecipeInfo();
 }
 
 function updateUI() {
@@ -310,6 +339,11 @@ function updateUI() {
     } else {
         document.getElementById('buyPlanterBtn').style.display = 'inline-block';
         document.getElementById('plantAllBtn').style.display = 'none';
+    }
+    // Update live inventory if the tab is open
+    const invView = document.getElementById('inventory-view');
+    if (invView && invView.style.display === 'block') {
+        renderInventory();
     }
 }
 
@@ -388,24 +422,29 @@ function renderFarm() {
             if (percentage < 0) percentage = 0;
 
             const secondsLeft = Math.ceil(timeRemaining / 1000);
+            const timeString = formatTime(secondsLeft); // Use the new formatter!
             
             if (secondsLeft > 0) {
                 tile.className = 'lot';
                 const readyCol = crops[lot.type].readyColor;
-                const growCol = crops[lot.type].growingColor;
-                tile.style.background = `linear-gradient(to top, ${readyCol} ${percentage}%, ${growCol} ${percentage}%)`;
-                tile.style.borderColor = 'rgba(0,0,0,0.2)';
+                
+                // Matches the dark Shed background style!
+                tile.style.background = `linear-gradient(to top, ${readyCol} ${percentage}%, #34495e ${percentage}%)`;
+                tile.style.borderColor = readyCol;
+                
                 tile.innerHTML = `
-                    <div>${crops[lot.type].name}</div>
-                    <div style="font-size: 0.9em; margin-top: 5px;">⏳ ${secondsLeft}s</div>
+                    <div style="font-size: 1.2rem; margin-bottom: 5px;">${crops[lot.type].icon}</div>
+                    <div style="font-size: 0.9rem; font-weight: bold;">${crops[lot.type].name}</div>
+                    <div style="font-size: 0.8em; margin-top: 5px; color: white;">⏳ ${timeString}</div>
                 `;
             } else {
                 tile.className = 'lot';
-                tile.style.background = crops[lot.type].readyColor;
-                tile.style.borderColor = 'white';
+                tile.style.background = '#27ae60'; // Match Shed Ready Color
+                tile.style.borderColor = '#2ecc71';
                 tile.innerHTML = `
-                    <div style="font-size: 1.2em;">${crops[lot.type].name}</div>
-                    <div style="font-weight: bold; margin-top: 5px;">✔️ Ready!</div>
+                    <div style="font-size: 1.5rem; margin-bottom: 5px;">${crops[lot.type].icon}</div>
+                    <div style="font-weight: bold; font-size: 1rem;">${crops[lot.type].name}</div>
+                    <div style="font-size: 0.9rem; font-weight: bold; margin-top: 2px;">✔️ Ready!</div>
                 `;
             }
         }
@@ -416,63 +455,146 @@ function renderShedFloor() {
     if(document.getElementById('shed-view').style.display === 'none') return;
     const floor = document.getElementById('shed-floor');
     if(!floor) return;
-    
-    floor.innerHTML = '';
-    const now = Date.now();
 
     if (state.machines.length === 0) {
         floor.innerHTML = '<p style="color: #bdc3c7;">Your shed is empty! Buy a machine from the store above.</p>';
         return;
     }
 
+    // FIX: Only rebuild the DOM if you bought a new machine! 
+    // This stops the animation lag completely.
+    if (floor.children.length !== state.machines.length || floor.children[0].tagName === 'P') {
+        floor.innerHTML = '';
+        state.machines.forEach((_, index) => {
+            const card = document.createElement('div');
+            card.id = `machine-${index}`;
+            floor.appendChild(card);
+        });
+    }
+
+    const now = Date.now();
+
     state.machines.forEach((machine, index) => {
+        const card = document.getElementById(`machine-${index}`);
+        if (!card) return;
+
         const mData = machinesData[machine.type];
-        const card = document.createElement('div');
-        card.className = 'machine-card'; 
-        
+
         if (!machine.isProcessing && !machine.isReady) {
+            // Apply the 'lot' class to make it match the farm!
+            card.className = 'lot machine-empty'; 
+            card.style.background = '#34495e';
+            card.style.borderColor = '#7f8c8d';
             card.innerHTML = `
-                <div style="font-size: 2rem;">${mData.icon}</div>
-                <div style="font-weight: bold;">${mData.name}</div>
+                <div style="font-size: 2rem; margin-bottom: 5px;">${mData.icon}</div>
+                <div style="font-weight: bold; font-size: 1rem;">${mData.name}</div>
                 <div style="font-size: 0.8rem; margin-top: 5px; color: #bdc3c7;">Click to Load</div>
             `;
             card.onclick = () => loadMachine(index);
-            
+
         } else if (machine.isProcessing && !machine.isReady) {
             const recipe = artisanData[machine.recipe];
+            const cropSource = crops[recipe.input];
+
             const totalProcessTime = recipe.processTime * 1000;
             const timeRemaining = machine.finishTime - now;
             const timeElapsed = totalProcessTime - timeRemaining;
-            
+
             let percentage = (timeElapsed / totalProcessTime) * 100;
             if (percentage > 100) percentage = 100;
             if (percentage < 0) percentage = 0;
-            
+
             const secondsLeft = Math.ceil(timeRemaining / 1000);
-            
-            card.style.background = `linear-gradient(to top, rgba(243, 156, 18, 0.5) ${percentage}%, #34495e ${percentage}%)`;
-            card.style.borderColor = '#f39c12';
-            
+            const timeString = formatTime(secondsLeft);
+
+            card.className = 'lot working-machine'; // Triggers smooth animation
+            card.style.background = `linear-gradient(to top, ${cropSource.readyColor} ${percentage}%, #34495e ${percentage}%)`;
+            card.style.borderColor = cropSource.readyColor;
+
             card.innerHTML = `
-                <div style="font-size: 2rem;">⚙️</div>
-                <div style="font-weight: bold; font-size: 0.9rem;">Making ${recipe.name}...</div>
-                <div style="font-size: 0.9rem; margin-top: 5px;">⏳ ${secondsLeft}s</div>
+                <div style="font-size: 1.5rem; margin-bottom: 5px;">${recipe.icon}</div>
+                <div style="font-weight: bold; font-size: 0.9rem;">${recipe.name}</div>
+                <div style="font-size: 0.8rem; margin-top: 5px; color: white;">⏳ ${timeString}</div>
             `;
-            
+            card.onclick = null; // Prevent clicking while working
+
         } else if (machine.isReady) {
             const recipe = artisanData[machine.recipe];
+            card.className = 'lot ready-machine'; // Keeps animation going
             card.style.background = '#27ae60';
             card.style.borderColor = '#2ecc71';
             card.innerHTML = `
-                <div style="font-size: 2rem;">${recipe.icon}</div>
-                <div style="font-weight: bold;">Ready!</div>
-                <div style="font-size: 0.8rem; margin-top: 5px;">Click to Collect</div>
+                <div style="font-size: 1.5rem; margin-bottom: 5px;">${recipe.icon}</div>
+                <div style="font-weight: bold; font-size: 0.9rem;">${recipe.name}</div>
+                <div style="font-size: 0.8rem; margin-top: 5px;">✔️ Ready!</div>
             `;
             card.onclick = () => collectMachine(index);
         }
-        
-        floor.appendChild(card);
     });
+}
+
+// --- INVENTORY LOGIC ---
+function renderInventory() {
+    const rawContainer = document.getElementById('inventory-raw');
+    const artisanContainer = document.getElementById('inventory-artisan');
+    if (!rawContainer || !artisanContainer) return;
+
+    rawContainer.innerHTML = '';
+    artisanContainer.innerHTML = '';
+
+    // 1. Draw Raw Crops
+    Object.keys(crops).forEach(id => {
+        const item = crops[id];
+        const count = state.inventory[id] || 0;
+        
+        // Only show if the player has unlocked it, or if they happen to have some
+        if (state.unlockedCrops[id] || count > 0) {
+            rawContainer.innerHTML += `
+                <div style="background: #34495e; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid ${item.growingColor}; min-width: 110px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 5px;">${item.icon}</div>
+                    <div style="font-weight: bold; font-size: 1rem;">${item.name}</div>
+                    <div style="font-size: 1.3rem; color: #f1c40f; margin-top: 5px; font-weight: bold;">${count}</div>
+                </div>
+            `;
+        }
+    });
+
+    // 2. Draw Artisan Goods
+    let hasArtisan = false;
+    Object.keys(artisanData).forEach(id => {
+        const item = artisanData[id];
+        const count = state.inventory[id] || 0;
+        
+        // Show if they have the shed unlocked, or if they somehow bought artisan goods from Dukun
+        if (state.shedUnlocked || count > 0) {
+            hasArtisan = true;
+            artisanContainer.innerHTML += `
+                <div style="background: #34495e; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #9b59b6; min-width: 110px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 5px;">${item.icon}</div>
+                    <div style="font-weight: bold; font-size: 1rem;">${item.name}</div>
+                    <div style="font-size: 1.3rem; color: #f1c40f; margin-top: 5px; font-weight: bold;">${count}</div>
+                </div>
+            `;
+        }
+    });
+
+    // Fallback if they haven't unlocked the shed yet
+    if (!hasArtisan) {
+        artisanContainer.innerHTML = '<p style="color: #bdc3c7; font-style: italic;">Unlock the Shed to discover Artisan Goods!</p>';
+    }
+}
+
+// --- Inputs & UI Helpers ---
+window.updateRecipeInfo = function() {
+    const recipeId = getSelectedArtisan();
+    if (!recipeId) return;
+    
+    const recipe = artisanData[recipeId];
+    const infoSpan = document.getElementById('selected-recipe-info');
+    
+    if (infoSpan) {
+        infoSpan.innerText = `(Needs ${recipe.inputAmount} ${crops[recipe.input].name})`;
+    }
 }
 
 // --- Inputs ---

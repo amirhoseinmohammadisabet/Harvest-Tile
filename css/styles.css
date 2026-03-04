@@ -125,3 +125,18 @@ button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
     gap: 10px;
     align-items: center;
 }
+
+/* ========================================== */
+/* SHED MACHINES (Built using the .lot class) */
+/* ========================================== */
+.machine-empty {
+    background-color: #34495e;
+    border: 2px solid #7f8c8d;
+    animation: none !important; /* This stops the inherited pulse from the .lot class! */
+}
+
+/* Shares the exact same pulse animation as the Farm lots! */
+.working-machine, 
+.ready-machine {
+    animation: pulse 2s infinite ease-in-out;
+}

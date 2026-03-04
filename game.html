@@ -5,12 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tile Farm</title>
     <link rel="stylesheet" href="css/styles.css"> 
-    <style>
-        .machine-card { background-color: #34495e; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #7f8c8d; cursor: pointer; transition: transform 0.1s;}
-        .machine-card:active { transform: scale(0.95); }
-        .machine-card.ready { border-color: #2ecc71; background-color: #27ae60; }
-        .machine-card.working { border-color: #f39c12; }
-    </style>
 </head>
 <body>
 
@@ -32,12 +26,27 @@
         </div>
     </div>
 
-    <div class="panel" style="display: flex; justify-content: center; gap: 20px; padding: 10px; background-color: #2c3e50; border-bottom: 3px solid #34495e;">
+    <div class="panel" style="display: flex; justify-content: center; gap: 20px; padding: 10px; background-color: #2c3e50; border-bottom: 3px solid #34495e; flex-wrap: wrap;">
         <button id="tab-farm" onclick="switchTab('farm')" style="background-color: #f39c12; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🌾 The Farm</button>
         <button id="tab-shed" onclick="switchTab('shed')" style="background-color: #7f8c8d; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🛖 The Shed</button>
+        <button id="tab-inventory" onclick="switchTab('inventory')" style="background-color: #7f8c8d; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🎒 Inventory</button>
     </div>
 
     <div id="message-box" class="message-box"></div>
+
+    <div id="inventory-view" style="display: none;">
+        <div class="panel">
+            <h1 style="margin-top: 0; margin-bottom: 20px;">🎒 Global Inventory</h1>
+            
+            <h2>🌾 Seeds & Raw Crops</h2>
+            <div id="inventory-raw" class="flex-wrap-container" style="margin-bottom: 20px; gap: 15px;"></div>
+            
+            <hr style="border: 1px solid #2c3e50; margin-bottom: 20px;">
+            
+            <h2>📦 Artisan Goods</h2>
+            <div id="inventory-artisan" class="flex-wrap-container" style="gap: 15px;"></div>
+        </div>
+    </div>
 
     <div id="farm-view">
         <div class="panel">
@@ -86,7 +95,7 @@
                 <h2>Store & Tools</h2>
                 
                 <div style="margin-bottom: 10px;">
-                    <strong>Currently Selected Product:</strong>
+                    <strong>Currently Selected Product: <span id="selected-recipe-info" style="color: #f1c40f; margin-left: 10px;"></span></strong>
                     <div id="artisan-selector-container" class="flex-wrap-container" style="margin-top: 10px; margin-bottom: 15px; background: #2c3e50; padding: 10px; border-radius: 6px;"></div>
                 </div>
 
@@ -98,7 +107,7 @@
                 <button onclick="loadAllMachines()" style="background-color: #f39c12;">⚙️ Start All Available</button>
             </div>
 
-            <div id="shed-floor" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
+            <div id="shed-floor" style="display: flex; flex-wrap: wrap; gap: 15px;">
                 </div>
         </div>
     </div>
