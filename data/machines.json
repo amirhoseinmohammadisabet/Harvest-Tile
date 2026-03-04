@@ -2,23 +2,13 @@
     "keg": {
         "id": "keg",
         "name": "Keg",
-        "cost": 5000,
-        "input": "wheat",
-        "inputAmount": 5,
-        "output": "beer",
-        "outputAmount": 1,
-        "processTime": 60,
+        "baseCost": 5000,
         "icon": "🛢️"
     },
     "juicer": {
         "id": "juicer",
         "name": "Juicer",
-        "cost": 15000,
-        "input": "strawberries",
-        "inputAmount": 3,
-        "output": "strawberry_juice",
-        "outputAmount": 1,
-        "processTime": 120,
+        "baseCost": 15000,
         "icon": "🍹"
     }
 }

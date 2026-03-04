@@ -1,18 +1,14 @@
 {
-    "beer": {
-        "id": "beer",
-        "name": "Beer",
-        "sellPrice": 40,
-        "unlockPrice": 0,
-        "icon": "🍺",
-        "isArtisan": true
-    },
-    "strawberry_juice": {
-        "id": "strawberry_juice",
-        "name": "Strawberry Juice",
-        "sellPrice": 120,
-        "unlockPrice": 0,
-        "icon": "🧃",
-        "isArtisan": true
-    }
+    "beer": { "id": "beer", "name": "Beer", "machine": "keg", "input": "wheat", "inputAmount": 5, "processTime": 60, "sellPrice": 40, "icon": "🍺" },
+    "pale_ale": { "id": "pale_ale", "name": "Pale Ale", "machine": "keg", "input": "hops", "inputAmount": 5, "processTime": 120, "sellPrice": 150, "icon": "🍻" },
+    "strawberry_wine": { "id": "strawberry_wine", "name": "Strawberry Wine", "machine": "keg", "input": "strawberries", "inputAmount": 5, "processTime": 300, "sellPrice": 400, "icon": "🍷" },
+    "pumpkin_ale": { "id": "pumpkin_ale", "name": "Pumpkin Ale", "machine": "keg", "input": "pumpkins", "inputAmount": 3, "processTime": 400, "sellPrice": 600, "icon": "🍺" },
+    "whiskey": { "id": "whiskey", "name": "Whiskey", "machine": "keg", "input": "corn", "inputAmount": 10, "processTime": 600, "sellPrice": 1500, "icon": "🥃" },
+    "watermelon_wine": { "id": "watermelon_wine", "name": "Watermelon Wine", "machine": "keg", "input": "watermelons", "inputAmount": 5, "processTime": 800, "sellPrice": 2500, "icon": "🍷" },
+    "starfruit_wine": { "id": "starfruit_wine", "name": "Starfruit Wine", "machine": "keg", "input": "starfruit", "inputAmount": 3, "processTime": 1800, "sellPrice": 15000, "icon": "🍾" },
+
+    "strawberry_juice": { "id": "strawberry_juice", "name": "Strawberry Juice", "machine": "juicer", "input": "strawberries", "inputAmount": 3, "processTime": 120, "sellPrice": 120, "icon": "🧃" },
+    "pumpkin_juice": { "id": "pumpkin_juice", "name": "Pumpkin Juice", "machine": "juicer", "input": "pumpkins", "inputAmount": 2, "processTime": 180, "sellPrice": 180, "icon": "🥤" },
+    "watermelon_juice": { "id": "watermelon_juice", "name": "Watermelon Juice", "machine": "juicer", "input": "watermelons", "inputAmount": 2, "processTime": 300, "sellPrice": 450, "icon": "🍉" },
+    "sunflower_oil": { "id": "sunflower_oil", "name": "Sunflower Oil", "machine": "juicer", "input": "sunflowers", "inputAmount": 5, "processTime": 600, "sellPrice": 5000, "icon": "🛢️" }
 }

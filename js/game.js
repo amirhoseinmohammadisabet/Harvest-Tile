@@ -14,7 +14,8 @@ let state = {
     muted: false,
     stats: { totalHarvested: 0, totalEarned: 0, totalSpent: 0 },
     shedUnlocked: false,
-    machines: []
+    machines: [],
+    machinePrices: { keg: 5000, juicer: 15000 } // NEW: Tracks scaling costs
 };
 
 let crops = {}; 
@@ -81,7 +82,27 @@ function loadGame() {
         if (parsedState.stats) state.stats = { ...state.stats, ...parsedState.stats };
         
         if (parsedState.shedUnlocked !== undefined) state.shedUnlocked = parsedState.shedUnlocked;
-        if (parsedState.machines) state.machines = parsedState.machines;
+        
+        // --- THE FIX: Save File Upgrader ---
+        if (parsedState.machines) {
+            state.machines = parsedState.machines.map(m => {
+                // If it's an old machine missing the recipe property
+                if (m.recipe === undefined) {
+                    m.recipe = null;
+                    // If it was already running in the old save, force it to be Beer or Strawberry Juice so it doesn't crash!
+                    if (m.isProcessing || m.isReady) {
+                        m.recipe = (m.type === 'keg') ? 'beer' : 'strawberry_juice';
+                    }
+                }
+                return m;
+            });
+        }
+        // -----------------------------------
+
+        if (parsedState.machinePrices) state.machinePrices = parsedState.machinePrices;
+
+        // Failsafe if player loaded an old save without prices
+        if (!state.machinePrices) state.machinePrices = { keg: 5000, juicer: 15000 };
 
         Object.keys(crops).forEach(cropId => {
             if (state.inventory[cropId] === undefined) state.inventory[cropId] = 0;
@@ -135,7 +156,6 @@ function showMessage(msg) {
     messageTimeout = setTimeout(() => msgBox.style.opacity = 0, 3000);
 }
 
-// --- Tab Switching ---
 function switchTab(tab) {
     const farmView = document.getElementById('farm-view');
     const shedView = document.getElementById('shed-view');
@@ -159,25 +179,22 @@ function switchTab(tab) {
     }
 }
 
-// --- HTML Generator (Builds BOTH Farm and Shed UI dynamically) ---
 function generateUI() {
-    // 1. FARM ELEMENTS
     const statsContainer = document.getElementById('stats-container');
     const sellContainer = document.getElementById('sell-buttons-container');
     const seedSelector = document.getElementById('seed-selector-container');
     const unlockContainer = document.getElementById('unlock-buttons-container');
 
-    // 2. SHED ELEMENTS
     const shedStatsContainer = document.getElementById('shed-stats-container');
     const shedSellContainer = document.getElementById('shed-sell-buttons-container');
     const shedStoreContainer = document.getElementById('shed-store-container');
+    const artisanSelector = document.getElementById('artisan-selector-container');
 
     sellContainer.className = 'sell-grid';
     shedSellContainer.className = 'sell-grid';
     seedSelector.className = 'flex-wrap-container';
     unlockContainer.className = 'flex-wrap-container';
 
-    // Reset inner HTML
     statsContainer.innerHTML = `<div>💵 Money: $<span id="money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
     shedStatsContainer.innerHTML = `<div>💵 Money: $<span id="shed-money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
     sellContainer.innerHTML = '';
@@ -185,12 +202,11 @@ function generateUI() {
     seedSelector.innerHTML = '';
     unlockContainer.innerHTML = '';
     shedStoreContainer.innerHTML = '';
+    if (artisanSelector) artisanSelector.innerHTML = '';
 
-    // Populate Farm and Raw Material Stats
     Object.keys(crops).forEach((cropId) => {
         const crop = crops[cropId];
         
-        // Farm Stats & Selling
         statsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="${cropId}Count">0</span></div>`;
         sellContainer.innerHTML += `
             <div class="sell-item" id="${cropId}SellDiv">
@@ -200,7 +216,6 @@ function generateUI() {
             </div>
         `;
         
-        // Farm Store & Radios
         seedSelector.innerHTML += `
             <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
                 <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
@@ -213,12 +228,9 @@ function generateUI() {
                 </button>
             `;
         }
-
-        // Add raw crops to Shed Stats so you know what you can load
         shedStatsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="shed-${cropId}Count">0</span></div>`;
     });
 
-    // Populate Shed Artisan Stats & Selling
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
         shedStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="shed-${id}Count">0</span></div>`;
@@ -230,24 +242,25 @@ function generateUI() {
                 <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
             </div>
         `;
+
+        if (artisanSelector) {
+            artisanSelector.innerHTML += `
+                <label style="cursor: pointer; padding: 5px 10px; border-radius: 4px; display: inline-block;">
+                    <input type="radio" name="artisan-recipe" value="${id}">
+                    ${item.icon} ${item.name}
+                </label>
+            `;
+        }
     });
 
-    // Populate Shed Store
-    Object.keys(machinesData).forEach(id => {
-        const m = machinesData[id];
-        shedStoreContainer.innerHTML += `
-            <button onclick="buyMachine('${id}')" style="background-color: #9b59b6; color: white;">
-                Buy ${m.icon} ${m.name} ($${m.cost})
-            </button>
-        `;
-    });
-
-    // Default farm radio
+    // Default selections
     const wheatRadio = document.querySelector('input[value="wheat"]');
     if (wheatRadio) wheatRadio.checked = true;
+    
+    const beerRadio = document.querySelector('input[value="beer"]');
+    if (beerRadio) beerRadio.checked = true;
 }
 
-// --- State Updaters ---
 function updateUI() {
     const moneyDisplay = document.getElementById('money');
     if(moneyDisplay) moneyDisplay.innerText = state.money;
@@ -308,27 +321,38 @@ function updateShedUI() {
     const shedMoney = document.getElementById('shed-money');
     if (shedMoney) shedMoney.innerText = state.money;
 
-    // Update raw crop counts in the Shed stats grid
     Object.keys(crops).forEach(cropId => {
         const countSpan = document.getElementById(`shed-${cropId}Count`);
         if (countSpan) countSpan.innerText = state.inventory[cropId] || 0;
     });
 
-    // Update Artisan counts and sell buttons
     Object.keys(artisanData).forEach(id => {
         const countSpan = document.getElementById(`shed-${id}Count`);
         if (countSpan) countSpan.innerText = state.inventory[id] || 0;
 
-        const isLow = (state.inventory[id] <= 0); // No "leave 1 seed" rule for artisan goods
+        const isLow = (state.inventory[id] <= 0); 
         const sellBtn = document.getElementById(`sell${id}Btn`);
         const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
         
         if (sellBtn) sellBtn.disabled = isLow;
         if (sellAllBtn) sellAllBtn.disabled = isLow;
     });
+
+    const storeDiv = document.getElementById('shed-store-container');
+    if (storeDiv) {
+        storeDiv.innerHTML = '';
+        Object.keys(machinesData).forEach(id => {
+            const m = machinesData[id];
+            const currentPrice = state.machinePrices[id];
+            storeDiv.innerHTML += `
+                <button onclick="buyMachine('${id}')" style="background-color: #9b59b6; color: white;">
+                    Buy ${m.icon} ${m.name} ($${currentPrice})
+                </button>
+            `;
+        });
+    }
 }
 
-// --- Renders ---
 function renderFarm() {
     if(document.getElementById('farm-view').style.display === 'none') return;
     const farmDiv = document.getElementById('farm');
@@ -410,12 +434,13 @@ function renderShedFloor() {
             card.innerHTML = `
                 <div style="font-size: 2rem;">${mData.icon}</div>
                 <div style="font-weight: bold;">${mData.name}</div>
-                <div style="font-size: 0.8rem; margin-top: 5px; color: #bdc3c7;">Needs ${mData.inputAmount} ${crops[mData.input].name}</div>
+                <div style="font-size: 0.8rem; margin-top: 5px; color: #bdc3c7;">Click to Load</div>
             `;
             card.onclick = () => loadMachine(index);
             
         } else if (machine.isProcessing && !machine.isReady) {
-            const totalProcessTime = mData.processTime * 1000;
+            const recipe = artisanData[machine.recipe];
+            const totalProcessTime = recipe.processTime * 1000;
             const timeRemaining = machine.finishTime - now;
             const timeElapsed = totalProcessTime - timeRemaining;
             
@@ -430,15 +455,16 @@ function renderShedFloor() {
             
             card.innerHTML = `
                 <div style="font-size: 2rem;">⚙️</div>
-                <div style="font-weight: bold;">Processing...</div>
+                <div style="font-weight: bold; font-size: 0.9rem;">Making ${recipe.name}...</div>
                 <div style="font-size: 0.9rem; margin-top: 5px;">⏳ ${secondsLeft}s</div>
             `;
             
         } else if (machine.isReady) {
+            const recipe = artisanData[machine.recipe];
             card.style.background = '#27ae60';
             card.style.borderColor = '#2ecc71';
             card.innerHTML = `
-                <div style="font-size: 2rem;">${artisanData[mData.output].icon}</div>
+                <div style="font-size: 2rem;">${recipe.icon}</div>
                 <div style="font-weight: bold;">Ready!</div>
                 <div style="font-size: 0.8rem; margin-top: 5px;">Click to Collect</div>
             `;
@@ -449,17 +475,23 @@ function renderShedFloor() {
     });
 }
 
+// --- Inputs ---
+function getSelectedSeed() {
+    const checked = document.querySelector('input[name="seed"]:checked');
+    return checked ? checked.value : 'wheat'; 
+}
+
+function getSelectedArtisan() {
+    const checked = document.querySelector('input[name="artisan-recipe"]:checked');
+    return checked ? checked.value : 'beer';
+}
+
 // --- Farm Actions ---
 function handleLotClick(index) {
     const lot = state.lots[index];
     const now = Date.now();
     if (lot === null) plantCrop(index);
     else if (lot !== null && lot.finishTime <= now) harvestCrop(index);
-}
-
-function getSelectedSeed() {
-    const checked = document.querySelector('input[name="seed"]:checked');
-    return checked ? checked.value : 'wheat'; 
 }
 
 function plantCrop(lotIndex) {
@@ -624,15 +656,28 @@ window.unlockShed = function() {
 
 window.buyMachine = function(machineId) {
     const mData = machinesData[machineId];
-    if (state.money >= mData.cost) {
-        state.money -= mData.cost;
-        state.stats.totalSpent += mData.cost;
+    const currentPrice = state.machinePrices[machineId];
+
+    if (state.money >= currentPrice) {
+        state.money -= currentPrice;
+        state.stats.totalSpent += currentPrice;
         
         state.machines.push({
             type: machineId,
             isProcessing: false,
             isReady: false,
-            finishTime: 0
+            finishTime: 0,
+            recipe: null
+        });
+
+        // Increase price by 20% for the next one
+        state.machinePrices[machineId] = Math.floor(currentPrice * 1.2);
+        
+        // SORT LOGIC: Kegs group together first, Juicers next!
+        state.machines.sort((a, b) => {
+            if (a.type === 'keg' && b.type !== 'keg') return -1;
+            if (a.type !== 'keg' && b.type === 'keg') return 1;
+            return a.type.localeCompare(b.type);
         });
         
         saveGame();
@@ -640,41 +685,46 @@ window.buyMachine = function(machineId) {
         updateShedUI();
         renderShedFloor();
     } else {
-        showMessage(`Not enough money! You need $${mData.cost}.`);
+        showMessage(`Not enough money! You need $${currentPrice}.`);
     }
 }
 
 window.loadMachine = function(index) {
     const machine = state.machines[index];
-    const mData = machinesData[machine.type];
-    const requiredInput = mData.input;
-    const requiredAmount = mData.inputAmount;
+    const recipeId = getSelectedArtisan();
+    const recipe = artisanData[recipeId];
 
-    if (state.inventory[requiredInput] >= requiredAmount) {
-        state.inventory[requiredInput] -= requiredAmount;
+    if (machine.type !== recipe.machine) {
+        showMessage(`You can't make ${recipe.name} in a ${machinesData[machine.type].name}!`);
+        return;
+    }
+
+    if (state.inventory[recipe.input] >= recipe.inputAmount) {
+        state.inventory[recipe.input] -= recipe.inputAmount;
+        machine.recipe = recipeId;
         machine.isProcessing = true;
-        machine.finishTime = Date.now() + (mData.processTime * 1000);
+        machine.finishTime = Date.now() + (recipe.processTime * 1000);
         
         saveGame();
         updateUI(); 
         updateShedUI(); 
         renderShedFloor();
     } else {
-        showMessage(`You need ${requiredAmount} ${crops[requiredInput].name} to start this machine!`);
+        showMessage(`You need ${recipe.inputAmount} ${crops[recipe.input].name} to start this!`);
     }
 }
 
 window.collectMachine = function(index) {
     const machine = state.machines[index];
-    const mData = machinesData[machine.type];
-    const outputItem = mData.output;
-    const outputAmount = mData.outputAmount;
+    const recipe = artisanData[machine.recipe];
 
-    state.inventory[outputItem] += outputAmount;
+    // Give the product to player (Yield is always 1 for machines)
+    state.inventory[recipe.id] += 1;
     
     machine.isProcessing = false;
     machine.isReady = false;
     machine.finishTime = 0;
+    machine.recipe = null;
 
     playSound('harvest');
     saveGame();
@@ -684,14 +734,17 @@ window.collectMachine = function(index) {
 }
 
 window.loadAllMachines = function() {
+    const recipeId = getSelectedArtisan();
+    const recipe = artisanData[recipeId];
     let loadedAnything = false;
+
     state.machines.forEach((machine) => {
-        if (!machine.isProcessing && !machine.isReady) {
-            const mData = machinesData[machine.type];
-            if (state.inventory[mData.input] >= mData.inputAmount) {
-                state.inventory[mData.input] -= mData.inputAmount;
+        if (!machine.isProcessing && !machine.isReady && machine.type === recipe.machine) {
+            if (state.inventory[recipe.input] >= recipe.inputAmount) {
+                state.inventory[recipe.input] -= recipe.inputAmount;
+                machine.recipe = recipeId;
                 machine.isProcessing = true;
-                machine.finishTime = Date.now() + (mData.processTime * 1000);
+                machine.finishTime = Date.now() + (recipe.processTime * 1000);
                 loadedAnything = true;
             }
         }
@@ -699,13 +752,13 @@ window.loadAllMachines = function() {
 
     if (loadedAnything) {
         playSound('plant');
-        showMessage("Started all possible machines!");
+        showMessage(`Started making ${recipe.name}!`);
         saveGame();
         updateUI();
         updateShedUI();
         renderShedFloor();
     } else {
-        showMessage("Not enough raw materials to start any machines!");
+        showMessage(`No empty ${machinesData[recipe.machine].name}s or not enough ${crops[recipe.input].name}!`);
     }
 }
 
@@ -713,18 +766,19 @@ window.collectAllMachines = function() {
     let collectedAnything = false;
     state.machines.forEach((machine) => {
         if (machine.isReady) {
-            const mData = machinesData[machine.type];
-            state.inventory[mData.output] += mData.outputAmount;
+            const recipe = artisanData[machine.recipe];
+            state.inventory[recipe.id] += 1;
             machine.isProcessing = false;
             machine.isReady = false;
             machine.finishTime = 0;
+            machine.recipe = null;
             collectedAnything = true;
         }
     });
 
     if (collectedAnything) {
         playSound('harvest');
-        showMessage("Collected all artisan goods!");
+        showMessage("Collected all ready artisan goods!");
         saveGame();
         updateUI();
         updateShedUI();
