@@ -15,12 +15,18 @@ let state = {
     stats: { totalHarvested: 0, totalEarned: 0, totalSpent: 0 },
     shedUnlocked: false,
     machines: [],
-    machinePrices: { keg: 5000, juicer: 15000 } // NEW: Tracks scaling costs
+    machinePrices: { keg: 5000, juicer: 15000 },
+    // Weather System State
+    day: 1,
+    year: 1,
+    currentWeather: 'sunny',
+    lastDayTick: Date.now()
 };
 
 let crops = {}; 
 let artisanData = {};
 let machinesData = {};
+let weatherData = {};
 let messageTimeout;
 
 const sounds = {
@@ -35,18 +41,6 @@ function playSound(name) {
         sounds[name].currentTime = 0;
         sounds[name].play().catch(e => console.log("Audio play failed:", e));
     }
-}
-
-// --- Time Formatter ---
-function formatTime(totalSeconds) {
-    if (totalSeconds <= 0) return "0s";
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = Math.floor(totalSeconds % 60);
-    
-    if (h > 0) return `${h}h ${m}m ${s}s`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
 }
 
 function checkAuth() {
@@ -67,6 +61,96 @@ function checkAuth() {
 function signOut() {
     localStorage.removeItem('farmCurrentUser');
     window.location.href = 'index.html';
+}
+
+// --- Time Formatter ---
+function formatTime(totalSeconds) {
+    if (totalSeconds <= 0) return "0s";
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = Math.floor(totalSeconds % 60);
+    
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+}
+
+// --- WEATHER & CALENDAR SYSTEM ---
+function getSeasonKey(day) {
+    if (day <= 91) return 'spring';
+    if (day <= 182) return 'summer';
+    if (day <= 273) return 'fall';
+    return 'winter';
+}
+
+function updateWeatherUI() {
+    if (!weatherData.seasons || !weatherData.types) return;
+
+    const seasonKey = getSeasonKey(state.day);
+    const season = weatherData.seasons[seasonKey];
+    const weather = weatherData.types[state.currentWeather];
+
+    const uiDay = document.getElementById('ui-day');
+    if (uiDay) {
+        uiDay.innerText = state.day;
+        document.getElementById('ui-year').innerText = state.year;
+        document.getElementById('ui-season-icon').innerText = season.icon;
+        document.getElementById('ui-season').innerText = season.name;
+        document.getElementById('ui-season').style.color = season.color;
+        document.getElementById('ui-weather-icon').innerText = weather.icon;
+        document.getElementById('ui-weather').innerText = weather.name;
+
+        let effectText = "Normal crop conditions.";
+        if (weather.growSpeed > 1) effectText = "Crops grow faster!";
+        if (weather.growSpeed < 1) effectText = "Crops grow slower.";
+        if (weather.yieldBonus > 0) effectText += ` (+${weather.yieldBonus} Yield)`;
+        document.getElementById('ui-weather-effect').innerText = effectText;
+    }
+
+    document.body.style.backgroundColor = season.color;
+    drawWeatherParticles();
+}
+
+function drawWeatherParticles() {
+    const overlay = document.getElementById('weather-overlay');
+    if (!overlay) return;
+    overlay.innerHTML = ''; 
+
+    if (state.currentWeather === 'rainy' || state.currentWeather === 'snowy') {
+        const particleCount = state.currentWeather === 'rainy' ? 40 : 25;
+        const className = state.currentWeather === 'rainy' ? 'rain-drop' : 'snow-drop';
+        
+        for (let i = 0; i < particleCount; i++) {
+            const drop = document.createElement('div');
+            drop.className = `weather-drop ${className}`;
+            drop.style.left = `${Math.random() * 100}vw`;
+            drop.style.animationDuration = `${Math.random() * 1 + 0.5}s`;
+            drop.style.animationDelay = `${Math.random() * 2}s`;
+            overlay.appendChild(drop);
+        }
+    }
+}
+
+function advanceDay() {
+    state.day++;
+    if (state.day > 365) {
+        state.day = 1;
+        state.year++;
+    }
+    state.lastDayTick = Date.now();
+
+    const season = weatherData.seasons[getSeasonKey(state.day)];
+    const chances = season.chances;
+    
+    let rand = Math.random() * 100;
+    if (rand < chances.sunny) state.currentWeather = 'sunny';
+    else if (rand < chances.sunny + chances.cloudy) state.currentWeather = 'cloudy';
+    else if (rand < chances.sunny + chances.cloudy + chances.rainy) state.currentWeather = 'rainy';
+    else state.currentWeather = 'snowy';
+
+    updateWeatherUI();
+    saveGame();
+    showMessage(`A new day has dawned! It is ${weatherData.types[state.currentWeather].name}.`);
 }
 
 // --- Save & Load System ---
@@ -95,13 +179,11 @@ function loadGame() {
         
         if (parsedState.shedUnlocked !== undefined) state.shedUnlocked = parsedState.shedUnlocked;
         
-        // --- THE FIX: Save File Upgrader ---
+        // Save File Upgrader
         if (parsedState.machines) {
             state.machines = parsedState.machines.map(m => {
-                // If it's an old machine missing the recipe property
                 if (m.recipe === undefined) {
                     m.recipe = null;
-                    // If it was already running in the old save, force it to be Beer or Strawberry Juice so it doesn't crash!
                     if (m.isProcessing || m.isReady) {
                         m.recipe = (m.type === 'keg') ? 'beer' : 'strawberry_juice';
                     }
@@ -109,12 +191,14 @@ function loadGame() {
                 return m;
             });
         }
-        // -----------------------------------
 
         if (parsedState.machinePrices) state.machinePrices = parsedState.machinePrices;
-
-        // Failsafe if player loaded an old save without prices
         if (!state.machinePrices) state.machinePrices = { keg: 5000, juicer: 15000 };
+
+        if (parsedState.day !== undefined) state.day = parsedState.day;
+        if (parsedState.year !== undefined) state.year = parsedState.year;
+        if (parsedState.currentWeather !== undefined) state.currentWeather = parsedState.currentWeather;
+        if (parsedState.lastDayTick !== undefined) state.lastDayTick = parsedState.lastDayTick;
 
         Object.keys(crops).forEach(cropId => {
             if (state.inventory[cropId] === undefined) state.inventory[cropId] = 0;
@@ -136,10 +220,12 @@ async function init() {
         const resCrops = await fetch('data/crops.json'); 
         const resArtisan = await fetch('data/artisan.json');
         const resMachines = await fetch('data/machines.json');
+        const resWeather = await fetch('data/weather.json');
         
         crops = await resCrops.json();
         artisanData = await resArtisan.json();
         machinesData = await resMachines.json();
+        weatherData = await resWeather.json();
         
         Object.keys(artisanData).forEach(id => {
             if (state.inventory[id] === undefined) state.inventory[id] = 0;
@@ -152,6 +238,7 @@ async function init() {
         updateShedUI();
         renderFarm();
         renderShedFloor();
+        updateWeatherUI();
         startGameLoop();
     } catch (error) {
         console.error("Failed to load data:", error);
@@ -177,7 +264,6 @@ function switchTab(tab) {
     const tabShedBtn = document.getElementById('tab-shed');
     const tabInvBtn = document.getElementById('tab-inventory');
 
-    // Hide everything and reset buttons first
     farmView.style.display = 'none';
     shedView.style.display = 'none';
     if (invView) invView.style.display = 'none';
@@ -186,7 +272,6 @@ function switchTab(tab) {
     tabShedBtn.style.backgroundColor = '#7f8c8d'; 
     if (tabInvBtn) tabInvBtn.style.backgroundColor = '#7f8c8d';
 
-    // Show the requested tab
     if (tab === 'farm') {
         farmView.style.display = 'block';
         tabFarmBtn.style.backgroundColor = '#f39c12'; 
@@ -199,7 +284,7 @@ function switchTab(tab) {
         renderShedFloor();
     } else if (tab === 'inventory') {
         if (invView) invView.style.display = 'block';
-        if (tabInvBtn) tabInvBtn.style.backgroundColor = '#2980b9'; // Clean Blue
+        if (tabInvBtn) tabInvBtn.style.backgroundColor = '#2980b9'; 
         renderInventory();
     }
 }
@@ -256,7 +341,6 @@ function generateUI() {
         shedStatsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="shed-${cropId}Count">0</span></div>`;
     });
 
-    // Populate Shed Artisan Stats, Selling, and Selectors
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
         shedStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="shed-${id}Count">0</span></div>`;
@@ -279,15 +363,26 @@ function generateUI() {
         }
     });
 
-    // Default selections
     const wheatRadio = document.querySelector('input[value="wheat"]');
     if (wheatRadio) wheatRadio.checked = true;
     
     const beerRadio = document.querySelector('input[value="beer"]');
     if (beerRadio) beerRadio.checked = true;
 
-    // NEW: Set the initial recipe text when the game loads!
     updateRecipeInfo();
+}
+
+// --- Inputs & UI Helpers ---
+window.updateRecipeInfo = function() {
+    const recipeId = getSelectedArtisan();
+    if (!recipeId) return;
+    
+    const recipe = artisanData[recipeId];
+    const infoSpan = document.getElementById('selected-recipe-info');
+    
+    if (infoSpan) {
+        infoSpan.innerText = `(Needs ${recipe.inputAmount} ${crops[recipe.input].name})`;
+    }
 }
 
 function updateUI() {
@@ -340,7 +435,7 @@ function updateUI() {
         document.getElementById('buyPlanterBtn').style.display = 'inline-block';
         document.getElementById('plantAllBtn').style.display = 'none';
     }
-    // Update live inventory if the tab is open
+
     const invView = document.getElementById('inventory-view');
     if (invView && invView.style.display === 'block') {
         renderInventory();
@@ -387,6 +482,7 @@ function updateShedUI() {
     }
 }
 
+// --- Renderers ---
 function renderFarm() {
     if(document.getElementById('farm-view').style.display === 'none') return;
     const farmDiv = document.getElementById('farm');
@@ -422,13 +518,12 @@ function renderFarm() {
             if (percentage < 0) percentage = 0;
 
             const secondsLeft = Math.ceil(timeRemaining / 1000);
-            const timeString = formatTime(secondsLeft); // Use the new formatter!
+            const timeString = formatTime(secondsLeft);
             
             if (secondsLeft > 0) {
                 tile.className = 'lot';
                 const readyCol = crops[lot.type].readyColor;
                 
-                // Matches the dark Shed background style!
                 tile.style.background = `linear-gradient(to top, ${readyCol} ${percentage}%, #34495e ${percentage}%)`;
                 tile.style.borderColor = readyCol;
                 
@@ -439,7 +534,7 @@ function renderFarm() {
                 `;
             } else {
                 tile.className = 'lot';
-                tile.style.background = '#27ae60'; // Match Shed Ready Color
+                tile.style.background = '#27ae60'; 
                 tile.style.borderColor = '#2ecc71';
                 tile.innerHTML = `
                     <div style="font-size: 1.5rem; margin-bottom: 5px;">${crops[lot.type].icon}</div>
@@ -461,8 +556,6 @@ function renderShedFloor() {
         return;
     }
 
-    // FIX: Only rebuild the DOM if you bought a new machine! 
-    // This stops the animation lag completely.
     if (floor.children.length !== state.machines.length || floor.children[0].tagName === 'P') {
         floor.innerHTML = '';
         state.machines.forEach((_, index) => {
@@ -481,7 +574,6 @@ function renderShedFloor() {
         const mData = machinesData[machine.type];
 
         if (!machine.isProcessing && !machine.isReady) {
-            // Apply the 'lot' class to make it match the farm!
             card.className = 'lot machine-empty'; 
             card.style.background = '#34495e';
             card.style.borderColor = '#7f8c8d';
@@ -507,7 +599,7 @@ function renderShedFloor() {
             const secondsLeft = Math.ceil(timeRemaining / 1000);
             const timeString = formatTime(secondsLeft);
 
-            card.className = 'lot working-machine'; // Triggers smooth animation
+            card.className = 'lot working-machine'; 
             card.style.background = `linear-gradient(to top, ${cropSource.readyColor} ${percentage}%, #34495e ${percentage}%)`;
             card.style.borderColor = cropSource.readyColor;
 
@@ -516,11 +608,11 @@ function renderShedFloor() {
                 <div style="font-weight: bold; font-size: 0.9rem;">${recipe.name}</div>
                 <div style="font-size: 0.8rem; margin-top: 5px; color: white;">⏳ ${timeString}</div>
             `;
-            card.onclick = null; // Prevent clicking while working
+            card.onclick = null; 
 
         } else if (machine.isReady) {
             const recipe = artisanData[machine.recipe];
-            card.className = 'lot ready-machine'; // Keeps animation going
+            card.className = 'lot ready-machine'; 
             card.style.background = '#27ae60';
             card.style.borderColor = '#2ecc71';
             card.innerHTML = `
@@ -533,7 +625,6 @@ function renderShedFloor() {
     });
 }
 
-// --- INVENTORY LOGIC ---
 function renderInventory() {
     const rawContainer = document.getElementById('inventory-raw');
     const artisanContainer = document.getElementById('inventory-artisan');
@@ -542,12 +633,10 @@ function renderInventory() {
     rawContainer.innerHTML = '';
     artisanContainer.innerHTML = '';
 
-    // 1. Draw Raw Crops
     Object.keys(crops).forEach(id => {
         const item = crops[id];
         const count = state.inventory[id] || 0;
         
-        // Only show if the player has unlocked it, or if they happen to have some
         if (state.unlockedCrops[id] || count > 0) {
             rawContainer.innerHTML += `
                 <div style="background: #34495e; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid ${item.growingColor}; min-width: 110px;">
@@ -559,13 +648,11 @@ function renderInventory() {
         }
     });
 
-    // 2. Draw Artisan Goods
     let hasArtisan = false;
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
         const count = state.inventory[id] || 0;
         
-        // Show if they have the shed unlocked, or if they somehow bought artisan goods from Dukun
         if (state.shedUnlocked || count > 0) {
             hasArtisan = true;
             artisanContainer.innerHTML += `
@@ -578,22 +665,8 @@ function renderInventory() {
         }
     });
 
-    // Fallback if they haven't unlocked the shed yet
     if (!hasArtisan) {
         artisanContainer.innerHTML = '<p style="color: #bdc3c7; font-style: italic;">Unlock the Shed to discover Artisan Goods!</p>';
-    }
-}
-
-// --- Inputs & UI Helpers ---
-window.updateRecipeInfo = function() {
-    const recipeId = getSelectedArtisan();
-    if (!recipeId) return;
-    
-    const recipe = artisanData[recipeId];
-    const infoSpan = document.getElementById('selected-recipe-info');
-    
-    if (infoSpan) {
-        infoSpan.innerText = `(Needs ${recipe.inputAmount} ${crops[recipe.input].name})`;
     }
 }
 
@@ -620,7 +693,11 @@ function plantCrop(lotIndex) {
     const seed = getSelectedSeed();
     if (state.inventory[seed] >= 1) {
         state.inventory[seed] -= 1;
-        state.lots[lotIndex] = { type: seed, finishTime: Date.now() + (crops[seed].growTime * 1000), isReady: false };
+
+        const weatherObj = weatherData.types[state.currentWeather];
+        const modifiedGrowTime = crops[seed].growTime / weatherObj.growSpeed;
+
+        state.lots[lotIndex] = { type: seed, finishTime: Date.now() + (modifiedGrowTime * 1000), isReady: false };
         playSound('plant');
         updateUI();
         updateShedUI();
@@ -632,8 +709,11 @@ function plantCrop(lotIndex) {
 
 function harvestCrop(lotIndex) {
     const cropType = state.lots[lotIndex].type;
-    state.inventory[cropType] += crops[cropType].yield;
-    state.stats.totalHarvested += crops[cropType].yield;
+    const weatherObj = weatherData.types[state.currentWeather];
+    const totalYield = crops[cropType].yield + weatherObj.yieldBonus;
+
+    state.inventory[cropType] += totalYield;
+    state.stats.totalHarvested += totalYield;
     state.lots[lotIndex] = null;
     playSound('harvest');
     updateUI();
@@ -645,10 +725,13 @@ function harvestAll() {
     if (!state.scytheUnlocked) return;
     const now = Date.now();
     let harvestedAnything = false;
+    const weatherObj = weatherData.types[state.currentWeather];
+
     state.lots.forEach((lot, index) => {
         if (lot !== null && lot.finishTime <= now) {
-            state.inventory[lot.type] += crops[lot.type].yield;
-            state.stats.totalHarvested += crops[lot.type].yield;
+            const totalYield = crops[lot.type].yield + weatherObj.yieldBonus;
+            state.inventory[lot.type] += totalYield;
+            state.stats.totalHarvested += totalYield;
             state.lots[index] = null; 
             harvestedAnything = true;
         }
@@ -666,10 +749,13 @@ function plantAll() {
     if (!state.planterUnlocked) return;
     const seed = getSelectedSeed();
     let plantedAnything = false;
+    const weatherObj = weatherData.types[state.currentWeather];
+    const modifiedGrowTime = crops[seed].growTime / weatherObj.growSpeed;
+
     for (let i = 0; i < state.lots.length; i++) {
         if (state.lots[i] === null && state.inventory[seed] >= 1) {
             state.inventory[seed] -= 1;
-            state.lots[i] = { type: seed, finishTime: Date.now() + (crops[seed].growTime * 1000), isReady: false };
+            state.lots[i] = { type: seed, finishTime: Date.now() + (modifiedGrowTime * 1000), isReady: false };
             plantedAnything = true;
         }
     }
@@ -792,10 +878,8 @@ window.buyMachine = function(machineId) {
             recipe: null
         });
 
-        // Increase price by 20% for the next one
         state.machinePrices[machineId] = Math.floor(currentPrice * 1.2);
         
-        // SORT LOGIC: Kegs group together first, Juicers next!
         state.machines.sort((a, b) => {
             if (a.type === 'keg' && b.type !== 'keg') return -1;
             if (a.type !== 'keg' && b.type === 'keg') return 1;
@@ -840,7 +924,6 @@ window.collectMachine = function(index) {
     const machine = state.machines[index];
     const recipe = artisanData[machine.recipe];
 
-    // Give the product to player (Yield is always 1 for machines)
     state.inventory[recipe.id] += 1;
     
     machine.isProcessing = false;
@@ -976,9 +1059,15 @@ function updateMuteButton() {
 // --- Master Game Loop ---
 function startGameLoop() {
     setInterval(() => {
+        const now = Date.now();
+        
+        // Handle Calendar / Weather engine
+        if (now - state.lastDayTick >= 60000) {
+            advanceDay();
+        }
+
         let needsFarmRender = false;
         let needsShedRender = false;
-        const now = Date.now();
         
         // Tick Farm
         state.lots.forEach(lot => {

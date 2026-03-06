@@ -25,6 +25,14 @@
             <button onclick="signOut()" style="background-color: #e74c3c; margin: 0;">Sign Out</button>
         </div>
     </div>
+    <div class="panel" style="text-align: center; font-size: 1.2rem; font-weight: bold; background-color: rgba(44, 62, 80, 0.9);">
+        📅 Day <span id="ui-day" style="color: #f1c40f;">1</span> (Year <span id="ui-year">1</span>) &nbsp; | &nbsp;
+        <span id="ui-season-icon">🌸</span> <span id="ui-season" style="color: #a8e6cf;">Spring</span> &nbsp; | &nbsp;
+        <span id="ui-weather-icon">☀️</span> <span id="ui-weather">Sunny</span>
+        <div style="font-size: 0.9rem; font-weight: normal; color: #bdc3c7; margin-top: 5px;" id="ui-weather-effect">Normal crop growth.</div>
+    </div>
+
+    <div id="message-box" class="message-box"></div>
 
     <div class="panel" style="display: flex; justify-content: center; gap: 20px; padding: 10px; background-color: #2c3e50; border-bottom: 3px solid #34495e; flex-wrap: wrap;">
         <button id="tab-farm" onclick="switchTab('farm')" style="background-color: #f39c12; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🌾 The Farm</button>
@@ -119,7 +127,7 @@
         </div>
         <button onclick="closeMailbox()" style="background-color: #e74c3c; width: 100%;">Close Mailbox</button>
     </div>
-
+    <div id="weather-overlay"></div>
     <script src="js/game.js"></script> 
     <script type="module" src="js/mailbox.js"></script>
 </body>

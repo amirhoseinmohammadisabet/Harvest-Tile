@@ -140,3 +140,42 @@ button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
 .ready-machine {
     animation: pulse 2s infinite ease-in-out;
 }
+
+/* ========================================== */
+/* WEATHER & SEASONS                          */
+/* ========================================== */
+body {
+    transition: background-color 2s ease-in-out; /* Smooth seasonal color transitions */
+}
+
+#weather-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; /* Lets you click through the rain */
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.weather-drop {
+    position: absolute;
+    animation: fall linear infinite;
+}
+
+.rain-drop {
+    background: rgba(52, 152, 219, 0.6);
+    width: 2px;
+    height: 15px;
+}
+
+.snow-drop {
+    background: white;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(255,255,255,0.8);
+}
+
+@keyframes fall {
+    0% { transform: translateY(-10px) translateX(0px); opacity: 1; }
+    100% { transform: translateY(100vh) translateX(20px); opacity: 0; }
+}
