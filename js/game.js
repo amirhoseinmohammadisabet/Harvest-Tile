@@ -192,8 +192,14 @@ function loadGame() {
             });
         }
 
-        if (parsedState.machinePrices) state.machinePrices = parsedState.machinePrices;
-        if (!state.machinePrices) state.machinePrices = { keg: 5000, juicer: 15000 };
+        if (parsedState.machinePrices) {
+            state.machinePrices = parsedState.machinePrices;
+            // The Fix: Catch old save files that don't have the grill tracked yet!
+            if (state.machinePrices.grill === undefined) {
+                state.machinePrices.grill = 8000;
+            }
+        }
+        if (!state.machinePrices) state.machinePrices = { keg: 5000, juicer: 15000, grill: 8000 };
 
         if (parsedState.day !== undefined) state.day = parsedState.day;
         if (parsedState.year !== undefined) state.year = parsedState.year;

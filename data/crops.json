@@ -97,5 +97,38 @@
         "icon": "⭐",
         "growingColor": "#bbdefb",
         "readyColor": "#ffee58"
+    },
+    "peas": {
+        "id": "peas",
+        "name": "Peas",
+        "growTime": 120,
+        "yield": 4,
+        "sellPrice": 25,
+        "unlockPrice": 500,
+        "icon": "🫛",
+        "growingColor": "#c8e6c9",
+        "readyColor": "#4caf50"
+    },
+    "tomatoes": {
+        "id": "tomatoes",
+        "name": "Tomatoes",
+        "growTime": 240,
+        "yield": 3,
+        "sellPrice": 60,
+        "unlockPrice": 1200,
+        "icon": "🍅",
+        "growingColor": "#ffccbc",
+        "readyColor": "#e53935"
+    },
+    "mushrooms": {
+        "id": "mushrooms",
+        "name": "Mushrooms",
+        "growTime": 300,
+        "yield": 2,
+        "sellPrice": 100,
+        "unlockPrice": 2500,
+        "icon": "🍄",
+        "growingColor": "#d7ccc8",
+        "readyColor": "#795548"
     }
 }

@@ -10,5 +10,10 @@
     "strawberry_juice": { "id": "strawberry_juice", "name": "Strawberry Juice", "machine": "juicer", "input": "strawberries", "inputAmount": 3, "processTime": 120, "sellPrice": 120, "icon": "🧃" },
     "pumpkin_juice": { "id": "pumpkin_juice", "name": "Pumpkin Juice", "machine": "juicer", "input": "pumpkins", "inputAmount": 2, "processTime": 180, "sellPrice": 180, "icon": "🥤" },
     "watermelon_juice": { "id": "watermelon_juice", "name": "Watermelon Juice", "machine": "juicer", "input": "watermelons", "inputAmount": 2, "processTime": 300, "sellPrice": 450, "icon": "🍉" },
-    "sunflower_oil": { "id": "sunflower_oil", "name": "Sunflower Oil", "machine": "juicer", "input": "sunflowers", "inputAmount": 5, "processTime": 600, "sellPrice": 5000, "icon": "🛢️" }
+    "sunflower_oil": { "id": "sunflower_oil", "name": "Sunflower Oil", "machine": "juicer", "input": "sunflowers", "inputAmount": 5, "processTime": 600, "sellPrice": 5000, "icon": "🛢️" },
+    "grilled_corn": { "id": "grilled_corn", "name": "Grilled Corn", "machine": "grill", "input": "corn", "inputAmount": 2, "processTime": 60, "sellPrice": 400, "icon": "🌽" },
+    "grilled_eggplant": { "id": "grilled_eggplant", "name": "Grilled Eggplant", "machine": "grill", "input": "eggplants", "inputAmount": 2, "processTime": 90, "sellPrice": 450, "icon": "🍆" },
+    "roasted_sunflower_seeds": { "id": "roasted_sunflower_seeds", "name": "Roasted Seeds", "machine": "grill", "input": "sunflowers", "inputAmount": 4, "processTime": 120, "sellPrice": 600, "icon": "🌻" },
+    "grilled_mushrooms": { "id": "grilled_mushrooms", "name": "Grilled Mushrooms", "machine": "grill", "input": "mushrooms", "inputAmount": 3, "processTime": 80, "sellPrice": 500, "icon": "🍄" },
+    "tomato_juice": { "id": "tomato_juice", "name": "Tomato Juice", "machine": "juicer", "input": "tomatoes", "inputAmount": 3, "processTime": 150, "sellPrice": 300, "icon": "🍅" }
 }

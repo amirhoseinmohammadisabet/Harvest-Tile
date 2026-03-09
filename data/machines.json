@@ -10,5 +10,11 @@
         "name": "Juicer",
         "baseCost": 15000,
         "icon": "🍹"
+    },
+    "grill": {
+        "id": "grill",
+        "name": "Grill",
+        "baseCost": 8000,
+        "icon": "🔥"
     }
 }
