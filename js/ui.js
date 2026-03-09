@@ -2,35 +2,6 @@
 // ui.js - User Interface & Rendering
 // ==========================================
 
-window.switchShedTab = function(type) {
-    state.activeShedTab = type;
-    updateShedTabs();
-    
-    // Force the floor to rebuild instantly
-    const floor = document.getElementById('shed-floor');
-    if (floor) floor.innerHTML = ''; 
-    
-    renderShedFloor();
-};
-
-function updateShedTabs() {
-    const tabsContainer = document.getElementById('shed-tabs');
-    if (!tabsContainer) return;
-
-    tabsContainer.innerHTML = '';
-    Object.keys(machinesData).forEach(type => {
-        const mData = machinesData[type];
-        const isActive = state.activeShedTab === type;
-        const bgColor = isActive ? '#8e44ad' : '#7f8c8d'; // Purple if active, gray if not
-        
-        tabsContainer.innerHTML += `
-            <button onclick="switchShedTab('${type}')" style="background-color: ${bgColor}; font-size: 1rem; padding: 8px 20px; border-radius: 6px;">
-                ${mData.icon} ${mData.name}s
-            </button>
-        `;
-    });
-}
-
 function switchTab(tab) {
     const farmView = document.getElementById('farm-view');
     const shedView = document.getElementById('shed-view');
@@ -63,6 +34,70 @@ function switchTab(tab) {
         if (tabInvBtn) tabInvBtn.style.backgroundColor = '#2980b9'; 
         renderInventory();
     }
+}
+
+window.switchShedTab = function(type) {
+    state.activeShedTab = type;
+    updateShedTabs();
+    
+    const floor = document.getElementById('shed-floor');
+    if (floor) floor.innerHTML = ''; 
+    
+    renderShedFloor();
+};
+
+function updateShedTabs() {
+    const tabsContainer = document.getElementById('shed-tabs');
+    if (!tabsContainer) return;
+
+    tabsContainer.innerHTML = '';
+    Object.keys(machinesData).forEach(type => {
+        const mData = machinesData[type];
+        const isActive = state.activeShedTab === type;
+        const bgColor = isActive ? '#8e44ad' : '#7f8c8d'; 
+        
+        tabsContainer.innerHTML += `
+            <button onclick="switchShedTab('${type}')" style="background-color: ${bgColor}; font-size: 1rem; padding: 8px 20px; border-radius: 6px;">
+                ${mData.icon} ${mData.name}s
+            </button>
+        `;
+    });
+
+    // NEW: Automatically update the recipe list when the tab changes!
+    updateArtisanSelector(); 
+}
+
+// NEW FUNCTION: Filters the recipes based on the active tab
+function updateArtisanSelector() {
+    const artisanSelector = document.getElementById('artisan-selector-container');
+    if (!artisanSelector || !state.activeShedTab) return;
+
+    artisanSelector.innerHTML = '';
+    let firstRecipeId = null;
+
+    Object.keys(artisanData).forEach(id => {
+        const item = artisanData[id];
+        
+        // Only show recipes that match the current machine tab!
+        if (item.machine === state.activeShedTab) {
+            if (!firstRecipeId) firstRecipeId = id; // Remember the first one
+            
+            artisanSelector.innerHTML += `
+                <label style="cursor: pointer; padding: 5px 10px; border-radius: 4px; display: inline-block;">
+                    <input type="radio" name="artisan-recipe" value="${id}" onchange="updateRecipeInfo()">
+                    ${item.icon} ${item.name}
+                </label>
+            `;
+        }
+    });
+
+    // Automatically select the first valid recipe so the radio buttons are never empty
+    if (firstRecipeId) {
+        const firstRadio = document.querySelector(`input[name="artisan-recipe"][value="${firstRecipeId}"]`);
+        if (firstRadio) firstRadio.checked = true;
+    }
+
+    updateRecipeInfo();
 }
 
 function generateUI() {
@@ -128,24 +163,10 @@ function generateUI() {
                 <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
             </div>
         `;
-
-        if (artisanSelector) {
-            artisanSelector.innerHTML += `
-                <label style="cursor: pointer; padding: 5px 10px; border-radius: 4px; display: inline-block;">
-                    <input type="radio" name="artisan-recipe" value="${id}" onchange="updateRecipeInfo()">
-                    ${item.icon} ${item.name}
-                </label>
-            `;
-        }
     });
 
     const wheatRadio = document.querySelector('input[value="wheat"]');
     if (wheatRadio) wheatRadio.checked = true;
-    
-    const beerRadio = document.querySelector('input[value="beer"]');
-    if (beerRadio) beerRadio.checked = true;
-
-    updateRecipeInfo();
 }
 
 window.updateRecipeInfo = function() {
@@ -255,6 +276,7 @@ function updateShedUI() {
             `;
         });
     }
+
     updateShedTabs();
 }
 
@@ -331,7 +353,6 @@ function renderShedFloor() {
         return;
     }
 
-    // 1. Map machines to keep original array index, then filter by active tab
     const visibleMachines = state.machines
         .map((machine, index) => ({ machine, index }))
         .filter(item => item.machine.type === state.activeShedTab);
@@ -341,19 +362,17 @@ function renderShedFloor() {
         return;
     }
 
-    // 2. Safely rebuild DOM
     if (floor.children.length !== visibleMachines.length || floor.children[0].tagName === 'P') {
         floor.innerHTML = '';
         visibleMachines.forEach((item) => {
             const card = document.createElement('div');
-            card.id = `machine-${item.index}`; // Uses real index!
+            card.id = `machine-${item.index}`; 
             floor.appendChild(card);
         });
     }
 
     const now = Date.now();
 
-    // 3. Update the visuals
     visibleMachines.forEach((item) => {
         const machine = item.machine;
         const originalIndex = item.index;
