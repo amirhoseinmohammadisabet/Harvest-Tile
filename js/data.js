@@ -26,6 +26,7 @@ let state = {
     shedUnlocked: false,
     machines: [],
     machinePrices: { keg: 5000, juicer: 15000, grill: 8000 },
+    activeShedTab: 'keg',
     day: 1,
     year: 1,
     currentWeather: 'sunny',
@@ -76,7 +77,7 @@ function loadGame() {
     const savedState = localStorage.getItem(saveKey);
     if (savedState) {
         const parsedState = JSON.parse(savedState);
-        
+        if (parsedState.activeShedTab) state.activeShedTab = parsedState.activeShedTab;
         if (parsedState.lots) {
             parsedState.lots.forEach(lot => {
                 if (lot !== null && lot.timeLeft !== undefined) {

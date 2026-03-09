@@ -2,6 +2,35 @@
 // ui.js - User Interface & Rendering
 // ==========================================
 
+window.switchShedTab = function(type) {
+    state.activeShedTab = type;
+    updateShedTabs();
+    
+    // Force the floor to rebuild instantly
+    const floor = document.getElementById('shed-floor');
+    if (floor) floor.innerHTML = ''; 
+    
+    renderShedFloor();
+};
+
+function updateShedTabs() {
+    const tabsContainer = document.getElementById('shed-tabs');
+    if (!tabsContainer) return;
+
+    tabsContainer.innerHTML = '';
+    Object.keys(machinesData).forEach(type => {
+        const mData = machinesData[type];
+        const isActive = state.activeShedTab === type;
+        const bgColor = isActive ? '#8e44ad' : '#7f8c8d'; // Purple if active, gray if not
+        
+        tabsContainer.innerHTML += `
+            <button onclick="switchShedTab('${type}')" style="background-color: ${bgColor}; font-size: 1rem; padding: 8px 20px; border-radius: 6px;">
+                ${mData.icon} ${mData.name}s
+            </button>
+        `;
+    });
+}
+
 function switchTab(tab) {
     const farmView = document.getElementById('farm-view');
     const shedView = document.getElementById('shed-view');
@@ -226,6 +255,7 @@ function updateShedUI() {
             `;
         });
     }
+    updateShedTabs();
 }
 
 function renderFarm() {
@@ -301,19 +331,33 @@ function renderShedFloor() {
         return;
     }
 
-    if (floor.children.length !== state.machines.length || floor.children[0].tagName === 'P') {
+    // 1. Map machines to keep original array index, then filter by active tab
+    const visibleMachines = state.machines
+        .map((machine, index) => ({ machine, index }))
+        .filter(item => item.machine.type === state.activeShedTab);
+
+    if (visibleMachines.length === 0) {
+        floor.innerHTML = `<p style="color: #bdc3c7;">You don't have any ${machinesData[state.activeShedTab].name}s yet!</p>`;
+        return;
+    }
+
+    // 2. Safely rebuild DOM
+    if (floor.children.length !== visibleMachines.length || floor.children[0].tagName === 'P') {
         floor.innerHTML = '';
-        state.machines.forEach((_, index) => {
+        visibleMachines.forEach((item) => {
             const card = document.createElement('div');
-            card.id = `machine-${index}`;
+            card.id = `machine-${item.index}`; // Uses real index!
             floor.appendChild(card);
         });
     }
 
     const now = Date.now();
 
-    state.machines.forEach((machine, index) => {
-        const card = document.getElementById(`machine-${index}`);
+    // 3. Update the visuals
+    visibleMachines.forEach((item) => {
+        const machine = item.machine;
+        const originalIndex = item.index;
+        const card = document.getElementById(`machine-${originalIndex}`);
         if (!card) return;
 
         const mData = machinesData[machine.type];
@@ -327,7 +371,7 @@ function renderShedFloor() {
                 <div style="font-weight: bold; font-size: 1rem;">${mData.name}</div>
                 <div style="font-size: 0.8rem; margin-top: 5px; color: #bdc3c7;">Click to Load</div>
             `;
-            card.onclick = () => loadMachine(index);
+            card.onclick = () => loadMachine(originalIndex); 
 
         } else if (machine.isProcessing && !machine.isReady) {
             const recipe = artisanData[machine.recipe];
@@ -365,7 +409,7 @@ function renderShedFloor() {
                 <div style="font-weight: bold; font-size: 0.9rem;">${recipe.name}</div>
                 <div style="font-size: 0.8rem; margin-top: 5px;">✔️ Ready!</div>
             `;
-            card.onclick = () => collectMachine(index);
+            card.onclick = () => collectMachine(originalIndex); 
         }
     });
 }

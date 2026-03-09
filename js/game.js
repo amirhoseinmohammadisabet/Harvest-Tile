@@ -271,6 +271,10 @@ window.buyMachine = function(machineId) {
             return a.type.localeCompare(b.type);
         });
         
+        state.activeShedTab = machineId;
+        const floor = document.getElementById('shed-floor');
+        if (floor) floor.innerHTML = ''; // Force rebuild
+
         saveGame();
         updateUI();
         updateShedUI();
