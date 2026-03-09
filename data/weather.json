@@ -1,9 +1,9 @@
 {
     "seasons": {
-        "spring": { "name": "Spring", "icon": "🌸", "color": "#F4A8CF", "chances": { "sunny": 50, "cloudy": 20, "rainy": 30, "snowy": 0 } },
-        "summer": { "name": "Summer", "icon": "🌻", "color": "#ffd3b6", "chances": { "sunny": 70, "cloudy": 20, "rainy": 10, "snowy": 0 } },
-        "fall": { "name": "Fall", "icon": "🍂", "color": "#ffaaa5", "chances": { "sunny": 40, "cloudy": 30, "rainy": 30, "snowy": 0 } },
-        "winter": { "name": "Winter", "icon": "⛄", "color": "#dcedc1", "chances": { "sunny": 40, "cloudy": 20, "rainy": 10, "snowy": 30 } }
+        "spring": { "name": "Spring", "icon": "🌸", "color": "#1b4332", "chances": { "sunny": 50, "cloudy": 20, "rainy": 30, "snowy": 0 } },
+        "summer": { "name": "Summer", "icon": "🌻", "color": "#593c22", "chances": { "sunny": 70, "cloudy": 20, "rainy": 10, "snowy": 0 } },
+        "fall": { "name": "Fall", "icon": "🍂", "color": "#5e2b15", "chances": { "sunny": 40, "cloudy": 30, "rainy": 30, "snowy": 0 } },
+        "winter": { "name": "Winter", "icon": "⛄", "color": "#151e27", "chances": { "sunny": 40, "cloudy": 20, "rainy": 10, "snowy": 30 } }
     },
     "types": {
         "sunny": { "name": "Sunny", "icon": "☀️", "growSpeed": 1.0, "yieldBonus": 0 },

@@ -96,7 +96,7 @@ function updateWeatherUI() {
         document.getElementById('ui-year').innerText = state.year;
         document.getElementById('ui-season-icon').innerText = season.icon;
         document.getElementById('ui-season').innerText = season.name;
-        document.getElementById('ui-season').style.color = season.color;
+        // document.getElementById('ui-season').style.color = season.color;
         document.getElementById('ui-weather-icon').innerText = weather.icon;
         document.getElementById('ui-weather').innerText = weather.name;
 

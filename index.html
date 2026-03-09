@@ -3,41 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tile Farm - Sign In</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Welcome to Tile Farm</title>
+    <link rel="stylesheet" href="css/styles.css">
     <style>
-        .login-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
+        .hero-section {
             text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(to bottom, #2c3e50, #34495e);
+            border-bottom: 4px solid #f39c12;
+            margin-bottom: 30px;
+            border-radius: 0 0 15px 15px;
         }
-        .login-box {
+        .hero-title {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            color: #f1c40f;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: #ecf0f1;
+            margin-bottom: 30px;
+        }
+        .feature-card {
             background-color: #34495e;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 250px;
+            border-top: 4px solid #3498db;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        /* Centers the Google button */
+        .google-btn-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
         }
     </style>
+    
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
-    <div class="login-container">
-        <div class="login-box">
-            <h1>🌾 Welcome to Tile Farm</h1>
-            <p>Please sign in to access your farm.</p>
-            
-            <div id="g_id_onload"
-                 data-client_id="434327259222-26st4d0dtrqri0rab1t94qkggre50ul3.apps.googleusercontent.com"
-                 data-context="signin"
-                 data-ux_mode="popup"
-                 data-callback="handleCredentialResponse"
-                 data-auto_prompt="false">
-            </div>
+    <div class="hero-section">
+        <h1 class="hero-title">🌾 Tile Farm</h1>
+        <p class="hero-subtitle">Plant, craft, and trade in a living, breathing world.</p>
+        
+        <div id="g_id_onload"
+             data-client_id="434327259222-26st4d0dtrqri0rab1t94qkggre50ul3.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
 
+        <div class="google-btn-container">
             <div class="g_id_signin"
                  data-type="standard"
                  data-shape="rectangular"
@@ -47,6 +73,32 @@
                  data-logo_alignment="left">
             </div>
         </div>
+    </div>
+
+    <div class="flex-wrap-container" style="justify-content: center; max-width: 1100px; margin: 0 auto; gap: 20px;">
+        
+        <div class="feature-card" style="border-top-color: #2ecc71;">
+            <div class="feature-icon">🌱</div>
+            <h2>Real-Time Growth</h2>
+            <p style="color: #bdc3c7;">Manage your farm lots as crops grow in real-time. Upgrade your tools to automate your daily workflow.</p>
+        </div>
+
+        <div class="feature-card" style="border-top-color: #f39c12;">
+            <div class="feature-icon">🌦️</div>
+            <h2>Dynamic Weather</h2>
+            <p style="color: #bdc3c7;">Adapt to 4 changing seasons. Rain speeds up your harvest, while snow freezes your fields!</p>
+        </div>
+
+        <div class="feature-card" style="border-top-color: #9b59b6;">
+            <div class="feature-icon">🛖</div>
+            <h2>Artisan Crafting</h2>
+            <p style="color: #bdc3c7;">Unlock The Shed to build Kegs and Juicers. Process raw crops into high-value artisan goods.</p>
+        </div>
+
+    </div>
+
+    <div style="text-align: center; margin-top: 50px; color: #7f8c8d; margin-bottom: 20px;">
+        <p>&copy; 2026 Tile Farm. Built with Vanilla JS and Google Identity.</p>
     </div>
 
     <script>
@@ -70,5 +122,6 @@
             window.location.href = "game.html";
         }
     </script>
+
 </body>
 </html>
