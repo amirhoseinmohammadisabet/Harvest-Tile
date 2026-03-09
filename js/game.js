@@ -265,11 +265,8 @@ window.buyMachine = function(machineId) {
 
         state.machinePrices[machineId] = Math.floor(currentPrice * 1.2);
         
-        state.machines.sort((a, b) => {
-            if (a.type === 'keg' && b.type !== 'keg') return -1;
-            if (a.type !== 'keg' && b.type === 'keg') return 1;
-            return a.type.localeCompare(b.type);
-        });
+        // NEW: Perfectly dynamic alphabetical sorting!
+        state.machines.sort((a, b) => a.type.localeCompare(b.type));
         
         state.activeShedTab = machineId;
         const floor = document.getElementById('shed-floor');

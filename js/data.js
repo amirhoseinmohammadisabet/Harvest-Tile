@@ -25,8 +25,8 @@ let state = {
     stats: { totalHarvested: 0, totalEarned: 0, totalSpent: 0 },
     shedUnlocked: false,
     machines: [],
-    machinePrices: { keg: 5000, juicer: 15000, grill: 8000 },
-    activeShedTab: 'keg',
+    machinePrices: {}, 
+    activeShedTab: null, 
     day: 1,
     year: 1,
     currentWeather: 'sunny',
@@ -77,7 +77,7 @@ function loadGame() {
     const savedState = localStorage.getItem(saveKey);
     if (savedState) {
         const parsedState = JSON.parse(savedState);
-        if (parsedState.activeShedTab) state.activeShedTab = parsedState.activeShedTab;
+        
         if (parsedState.lots) {
             parsedState.lots.forEach(lot => {
                 if (lot !== null && lot.timeLeft !== undefined) {
@@ -93,37 +93,52 @@ function loadGame() {
         if (parsedState.stats) state.stats = { ...state.stats, ...parsedState.stats };
         if (parsedState.shedUnlocked !== undefined) state.shedUnlocked = parsedState.shedUnlocked;
         
+        // DYNAMIC SAVE UPGRADER: Automatically finds recipes instead of hardcoding "beer"
         if (parsedState.machines) {
             state.machines = parsedState.machines.map(m => {
                 if (m.recipe === undefined) {
                     m.recipe = null;
                     if (m.isProcessing || m.isReady) {
-                        m.recipe = (m.type === 'keg') ? 'beer' : 'strawberry_juice';
+                        // Finds the first valid recipe for whatever machine this is!
+                        m.recipe = Object.keys(artisanData).find(id => artisanData[id].machine === m.type) || null;
                     }
                 }
                 return m;
             });
         }
 
-        if (parsedState.machinePrices) {
-            state.machinePrices = parsedState.machinePrices;
-            if (state.machinePrices.grill === undefined) state.machinePrices.grill = 8000;
-        }
-        if (!state.machinePrices) state.machinePrices = { keg: 5000, juicer: 15000, grill: 8000 };
-
+        if (parsedState.machinePrices) state.machinePrices = parsedState.machinePrices;
+        if (parsedState.activeShedTab) state.activeShedTab = parsedState.activeShedTab;
         if (parsedState.day !== undefined) state.day = parsedState.day;
         if (parsedState.year !== undefined) state.year = parsedState.year;
         if (parsedState.currentWeather !== undefined) state.currentWeather = parsedState.currentWeather;
         if (parsedState.lastDayTick !== undefined) state.lastDayTick = parsedState.lastDayTick;
-
-        Object.keys(crops).forEach(cropId => {
-            if (state.inventory[cropId] === undefined) state.inventory[cropId] = 0;
-            if (state.unlockedCrops[cropId] === undefined) state.unlockedCrops[cropId] = (cropId === 'wheat');
-            
-            const growing = state.lots.filter(lot => lot && lot.type === cropId).length;
-            if (state.unlockedCrops[cropId] && state.inventory[cropId] <= 0 && growing === 0) {
-                state.inventory[cropId] = 1;
-            }
-        });
     }
+
+    // ==========================================
+    // DYNAMIC FAILSAFES (Runs for new AND old saves)
+    // ==========================================
+    
+    // 1. Give every machine a base price from the JSON if it doesn't have one yet
+    Object.keys(machinesData).forEach(machineId => {
+        if (state.machinePrices[machineId] === undefined) {
+            state.machinePrices[machineId] = machinesData[machineId].baseCost;
+        }
+    });
+
+    // 2. Set default active tab to the very first machine in your JSON file
+    if (!state.activeShedTab && Object.keys(machinesData).length > 0) {
+        state.activeShedTab = Object.keys(machinesData)[0];
+    }
+
+    // 3. Ensure all crops exist in inventory
+    Object.keys(crops).forEach(cropId => {
+        if (state.inventory[cropId] === undefined) state.inventory[cropId] = 0;
+        if (state.unlockedCrops[cropId] === undefined) state.unlockedCrops[cropId] = (cropId === 'wheat');
+        
+        const growing = state.lots.filter(lot => lot && lot.type === cropId).length;
+        if (state.unlockedCrops[cropId] && state.inventory[cropId] <= 0 && growing === 0) {
+            state.inventory[cropId] = 1;
+        }
+    });
 }
