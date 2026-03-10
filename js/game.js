@@ -586,4 +586,54 @@ function startGameLoop() {
     }, 1000);
 }
 
+// --- DUKUN MARKET BRIDGE ---
+window.deductMarketItem = function(itemId, amount) {
+    const parsedAmount = parseInt(amount);
+    
+    // Check if we actually have enough to sell
+    if (state.inventory[itemId] >= parsedAmount) {
+        state.inventory[itemId] -= parsedAmount;
+        
+        saveGame();
+        updateUI(); // Refreshes the dropdown and inventory visuals instantly
+        
+        return true; // Tells dukun.js it was successful
+    }
+    
+    showMessage("Not enough items in inventory!");
+    return false; // Tells dukun.js it failed
+};
+
+// --- P2P MARKET BRIDGE ---
+window.marketBridge = {
+    hasItem: function(itemId, amount) {
+        return (state.inventory[itemId] || 0) >= amount;
+    },
+    deductItem: function(itemId, amount) {
+        state.inventory[itemId] -= amount;
+        saveGame(); 
+        if(typeof updateDukunUI === 'function') updateDukunUI(); 
+    },
+    addItem: function(itemId, amount) {
+        state.inventory[itemId] = (state.inventory[itemId] || 0) + amount;
+        saveGame(); 
+        if(typeof updateDukunUI === 'function') updateDukunUI();
+    },
+    hasMoney: function(amount) {
+        return state.money >= amount;
+    },
+    spendMoney: function(amount) {
+        state.money -= amount;
+        if (state.stats) state.stats.totalSpent += amount;
+        saveGame(); 
+        if(typeof updateGlobalMoney === 'function') updateGlobalMoney();
+        if(typeof updateDukunUI === 'function') updateDukunUI();
+    },
+    addMoney: function(amount) { 
+        state.money += amount;
+        saveGame();
+        if(typeof updateGlobalMoney === 'function') updateGlobalMoney();
+    }
+};
+
 init();

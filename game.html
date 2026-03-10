@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tile Farm</title>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+        .market-card { background-color: #34495e; padding: 15px; border-radius: 8px; border-left: 5px solid #9b59b6; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .market-card h3 { margin: 0 0 10px 0; color: #ecf0f1; }
+        .market-card p { margin: 5px 0; color: #bdc3c7; }
+        .badge { background-color: #2ecc71; color: #2c3e50; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
+    </style>
 </head>
 <body>
     <div id="weather-overlay"></div>
@@ -17,6 +24,11 @@
                 <div id="user-email" style="font-size: 0.9rem; color: #bdc3c7;"></div>
             </div>
         </div>
+        
+        <div style="font-size: 1.8rem; font-weight: bold; color: #ecf0f1; background-color: #1a252f; padding: 5px 20px; border-radius: 8px; border: 2px solid #2ecc71;">
+            💵 $<span id="player-money" style="color: #2ecc71;">0</span>
+        </div>
+
         <div style="display: flex; gap: 10px;">
             <button id="muteBtn" onclick="toggleMute()" style="background-color: #3498db; padding: 10px 20px;">🔊 Mute</button>
             <button onclick="signOut()" style="background-color: #e74c3c; padding: 10px 20px;">Sign Out</button>
@@ -36,34 +48,25 @@
         <button id="tab-farm" onclick="switchTab('farm')" style="background-color: #f39c12; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🌾 The Farm</button>
         <button id="tab-shed" onclick="switchTab('shed')" style="background-color: #7f8c8d; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🛖 The Shed</button>
         <button id="tab-barn" onclick="switchTab('barn')" style="background-color: #7f8c8d; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🐄 The Barn</button>
+        <button id="tab-dukun" onclick="switchTab('dukun')" style="background-color: #7f8c8d; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🏪 Dukun</button>
         <button id="tab-inventory" onclick="switchTab('inventory')" style="background-color: #7f8c8d; font-size: 1.2rem; padding: 10px 30px; border-radius: 8px;">🎒 Inventory</button>
     </div>
 
     <div id="farm-view">
         <div class="panel">
-            <h1 style="margin-bottom: 10px; margin-top: 0;">Market & Storage</h1>
-            <div class="stats-grid" id="stats-container"></div>
-            <hr style="border: 1px solid #2c3e50; margin: 15px 0;">
-            <div id="sell-buttons-container"></div>
-        </div>
-
-        <div class="panel">
-            <h2>Seed Selector</h2>
-            <div id="seed-selector-container"></div>
-            <hr style="border: 1px solid #2c3e50; margin: 15px 0;">
+            <h1 style="margin-bottom: 10px; margin-top: 0;">Seeds & Supplies</h1>
+            <div id="seed-selector-container" style="margin-bottom: 15px;"></div>
             <div id="unlock-buttons-container"></div>
         </div>
 
         <div class="panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                <h2 style="margin: 0;">Your Farm</h2>
+                <h2 style="margin: 0;">Your Farm Floor</h2>
                 <div>
                     <button id="buyScytheBtn" onclick="buyScythe()" style="background-color: #8e44ad;">🛒 Buy Scythe ($500)</button>
                     <button id="harvestAllBtn" onclick="harvestAll()" style="background-color: #27ae60; display: none;">🌾 Harvest All Ready</button>
-                    
                     <button id="buyPlanterBtn" onclick="buyPlanter()" style="background-color: #2980b9;">🛒 Buy Planter ($1000)</button>
                     <button id="plantAllBtn" onclick="plantAll()" style="background-color: #2980b9; display: none;">🌱 Plant All Empty</button>
-                    
                     <button onclick="buyLot()" style="background-color: #d35400;">Buy Empty Lot</button>
                 </div>
             </div>
@@ -74,32 +77,20 @@
     <div id="shed-view" style="display: none;">
         <div id="shed-locked" class="panel" style="text-align: center; padding: 40px;">
             <h2>The Shed is Locked!</h2>
-            <p style="color: #bdc3c7;">Unlock the Shed to build processing machines and craft Artisan Goods.</p>
             <button onclick="unlockShed()" style="background-color: #8e44ad; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px;">🔨 Build Shed ($50,000)</button>
         </div>
-
         <div id="shed-unlocked" style="display: none;">
             <div class="panel">
-                <h1 style="margin-bottom: 10px; margin-top: 0;">Shed Inventory</h1>
-                <div class="stats-grid" id="shed-stats-container"></div>
-                <div id="shed-sell-buttons-container"></div>
-            </div>
-
-            <div class="panel">
-                <h2>Machine Store</h2>
+                <h2 style="margin-top: 0;">Machine Store & Recipes</h2>
                 <div id="shed-store-container" class="flex-wrap-container" style="margin-bottom: 15px;"></div>
-                
-                <h2>Recipe Selector</h2>
                 <div id="artisan-selector-container" class="flex-wrap-container" style="margin-bottom: 15px;"></div>
                 <div style="color: #f1c40f; font-weight: bold; margin-bottom: 15px;">
                     Selected Recipe Cost: <span id="selected-recipe-info"></span>
                 </div>
-
                 <hr style="border: 1px solid #2c3e50; margin-bottom: 15px;">
                 <button onclick="collectAllMachines()" style="background-color: #27ae60;">📦 Collect All Ready</button>
                 <button onclick="loadAllMachines()" style="background-color: #e67e22;">⚙️ Load All Empty</button>
             </div>
-
             <div id="shed-tabs" style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; flex-wrap: wrap;"></div>
             <div id="shed-floor" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
         </div>
@@ -108,37 +99,80 @@
     <div id="barn-view" style="display: none;">
         <div id="barn-locked" class="panel" style="text-align: center; padding: 40px;">
             <h2>The Barn is Locked!</h2>
-            <p style="color: #bdc3c7;">Unlock the Barn to raise livestock and harvest eggs, milk, and wool.</p>
             <button onclick="unlockBarn()" style="background-color: #e67e22; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px;">🔨 Build Barn ($75,000)</button>
         </div>
-
         <div id="barn-unlocked" style="display: none;">
             <div class="panel">
-                <h1 style="margin-bottom: 10px; margin-top: 0;">The Barn</h1>
-                <div class="stats-grid" id="barn-stats-container"></div>
-                <div id="barn-sell-buttons-container" class="sell-grid"></div>
-            </div>
-
-            <div class="panel">
-                <h2>Livestock Market</h2>
+                <h2 style="margin-top: 0;">Livestock Market</h2>
+                <div style="margin-bottom: 15px; font-size: 1.2rem;">🌾 Feed: <span id="barn-feed-count" style="color: #f39c12; font-weight: bold;">0</span></div>
                 <div id="barn-store-container" class="flex-wrap-container" style="margin-bottom: 15px;"></div>
                 <hr style="border: 1px solid #2c3e50; margin-bottom: 15px;">
                 <button onclick="collectAllAnimals()" style="background-color: #27ae60;">📦 Collect All Ready</button>
                 <button onclick="feedAllAnimals()" style="background-color: #f39c12;">🌾 Feed All Hungry</button>
             </div>
-
             <div id="barn-tabs" style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; flex-wrap: wrap;"></div>
             <div id="barn-floor" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
+        </div>
+    </div>
+
+    <div id="dukun-view" style="display: none;">
+        
+        <div class="panel" style="text-align: center; margin-bottom: 15px;">
+            <h1 style="margin-top: 0; color: #2ecc71; font-size: 2.5rem;">🏪 The Dukun</h1>
+            <p style="color: #bdc3c7; margin-bottom: 20px;">Welcome to the local market! Sell to the village or trade with other players.</p>
+            <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                <button id="dukun-tab-local" onclick="switchDukunTab('local')" style="background-color: #e67e22; font-size: 1.1rem; padding: 10px 30px; border-radius: 8px;">💰 Instant Sell (NPC)</button>
+                <button id="dukun-tab-global" onclick="switchDukunTab('global')" style="background-color: #7f8c8d; font-size: 1.1rem; padding: 10px 30px; border-radius: 8px;">🌍 Global Player Market</button>
+            </div>
+        </div>
+
+        <div id="dukun-local-view">
+            <div class="panel">
+                <h2 style="color: #f39c12; border-bottom: 2px solid #2c3e50; padding-bottom: 5px;">Sell Raw Crops</h2>
+                <div id="dukun-crops-container" class="sell-grid" style="margin-bottom: 30px;"></div>
+
+                <h2 style="color: #9b59b6; border-bottom: 2px solid #2c3e50; padding-bottom: 5px;">Sell Artisan Goods</h2>
+                <div id="dukun-artisan-container" class="sell-grid" style="margin-bottom: 30px;"></div>
+
+                <h2 style="color: #e67e22; border-bottom: 2px solid #2c3e50; padding-bottom: 5px;">Sell Animal Products & Feed</h2>
+                <div id="dukun-animal-container" class="sell-grid"></div>
+            </div>
+        </div>
+
+        <div id="dukun-global-view" style="display: none;">
+            <div class="panel" style="background-color: #2c3e50; border: 1px solid #9b59b6;">
+                <h2 style="margin-top: 0;">📦 Post a Listing to Players</h2>
+                <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">Select Item from Inventory:</label>
+                        <select id="sell-crop-select" style="padding: 8px; border-radius: 4px; font-size: 1rem;"></select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">Amount to Sell:</label>
+                        <input type="number" id="sell-amount" min="1" value="1" style="padding: 8px; border-radius: 4px; font-size: 1rem; width: 100px;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">Price PER ITEM ($):</label>
+                        <input type="number" id="sell-price" min="1" value="1" style="padding: 8px; border-radius: 4px; font-size: 1rem; width: 120px;">
+                    </div>
+                    <button id="post-listing-btn" style="background-color: #9b59b6; padding: 10px 20px;">Post to Market</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>🛒 Live Player Listings</h2>
+                <div id="market-container" class="market-grid">
+                    <p style="color: #bdc3c7;">Loading market data from Firebase...</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <div id="inventory-view" style="display: none;">
         <div class="panel">
             <h1 style="margin-bottom: 15px; margin-top: 0; color: #f39c12;">Global Inventory</h1>
-            
             <h2 style="color: #bdc3c7; border-bottom: 2px solid #2c3e50; padding-bottom: 5px;">Raw Materials & Seeds</h2>
             <div id="inventory-raw" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px;"></div>
-
             <h2 style="color: #bdc3c7; border-bottom: 2px solid #2c3e50; padding-bottom: 5px;">Artisan & Animal Goods</h2>
             <div id="inventory-artisan" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
         </div>
@@ -148,5 +182,8 @@
     <script src="js/weather.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/game.js"></script> 
-    </body>
+    
+    <script type="module" src="js/dukun.js"></script>
+    <script type="module" src="js/mailbox.js"></script>
+</body>
 </html>

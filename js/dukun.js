@@ -2,148 +2,115 @@ import { db } from './firebase-init.js';
 import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 let currentUser = null;
-let state = null;
-let saveKey = '';
-let crops = {};
+let allItems = {}; // Holds crops, artisan goods, and animal products!
 let messageTimeout;
 
-// --- Initialize Dukun ---
 async function init() {
     const storedUser = localStorage.getItem('farmCurrentUser');
-    if (!storedUser) {
-        window.location.href = 'index.html';
-        return;
-    }
+    if (!storedUser) return;
     currentUser = JSON.parse(storedUser);
-    saveKey = `tileFarmSave_${currentUser.email}`;
-    
-    // Load local save state to know their money and inventory
-    const savedState = localStorage.getItem(saveKey);
-    if (savedState) {
-        state = JSON.parse(savedState);
-        document.getElementById('player-money').innerText = state.money;
-    }
 
-    // Load crops data for names and icons
+    // Load ALL data so the market knows every single item's name and icon
     try {
-        const response = await fetch('data/crops.json');
-        crops = await response.json();
-        populateDropdown();
+        const resCrops = await fetch('data/crops.json');
+        const resArtisan = await fetch('data/artisan.json');
+        
+        const cropsData = await resCrops.json();
+        const artisanData = await resArtisan.json();
+        
+        // Combine them into one master dictionary
+        allItems = { ...cropsData, ...artisanData };
     } catch (error) {
-        console.error("Failed to load crops:", error);
+        console.error("Failed to load item data for market:", error);
     }
 
-    // Start listening to the live database!
     listenToMarket();
-
-    // Attach event listener to the Post button
     document.getElementById('post-listing-btn').addEventListener('click', postListing);
 }
 
-// --- UI Helpers ---
 function showMessage(msg) {
     const msgBox = document.getElementById('message-box');
+    if(!msgBox) return;
     msgBox.innerText = msg;
     msgBox.style.opacity = 1;
     clearTimeout(messageTimeout);
     messageTimeout = setTimeout(() => msgBox.style.opacity = 0, 3000);
 }
 
-function saveLocalState() {
-    localStorage.setItem(saveKey, JSON.stringify(state));
-    document.getElementById('player-money').innerText = state.money;
-}
-
-function populateDropdown() {
-    const select = document.getElementById('sell-crop-select');
-    Object.keys(crops).forEach(cropId => {
-        // Only show crops the player has in their inventory to sell
-        if (state.inventory[cropId] > 0) {
-            const option = document.createElement('option');
-            option.value = cropId;
-            option.text = `${crops[cropId].icon} ${crops[cropId].name} (You have: ${state.inventory[cropId]})`;
-            select.appendChild(option);
-        }
-    });
-}
-
-// --- Market Core Functions ---
-
 // 1. Post a new listing
 async function postListing() {
-    const cropId = document.getElementById('sell-crop-select').value;
+    const itemId = document.getElementById('sell-crop-select').value;
     const amount = parseInt(document.getElementById('sell-amount').value);
     const pricePerItem = parseInt(document.getElementById('sell-price').value);
 
-    if (!cropId || isNaN(amount) || isNaN(pricePerItem) || amount <= 0 || pricePerItem <= 0) {
+    if (!itemId || isNaN(amount) || isNaN(pricePerItem) || amount <= 0 || pricePerItem <= 0) {
         showMessage("Please enter valid amounts.");
         return;
     }
 
-    // Security Check: Do they have enough crop? (Remember to leave 1 seed)
-    if (state.inventory[cropId] - amount < 1) {
-        showMessage(`You don't have enough ${crops[cropId].name}! You must keep at least 1 seed.`);
+    // Security Check via the Main Game Bridge
+    if (!window.marketBridge.hasItem(itemId, amount)) {
+        showMessage("You don't have enough of that item!");
         return;
     }
 
     try {
-        // 1. Deduct from local inventory and save
-        state.inventory[cropId] -= amount;
-        saveLocalState();
-        populateDropdown(); // Refresh dropdown numbers
+        // Safely deduct from the live game memory
+        window.marketBridge.deductItem(itemId, amount);
 
-        // 2. Add to Firebase Database
         await addDoc(collection(db, "market_listings"), {
             sellerEmail: currentUser.email,
             sellerName: currentUser.name,
-            cropId: cropId,
+            cropId: itemId, // Keeping 'cropId' for database compatibility
             amount: amount,
             pricePerItem: pricePerItem,
             timestamp: serverTimestamp()
         });
 
         showMessage("Listing posted successfully!");
+        document.getElementById('sell-amount').value = 1; 
     } catch (e) {
         console.error("Error posting listing: ", e);
         showMessage("Database error. Try again.");
+        // Rollback: Give items back if Firebase fails
+        window.marketBridge.addItem(itemId, amount); 
     }
 }
 
-// 2. Listen to the database live (Real-time sync)
+// 2. Listen to the database live
 function listenToMarket() {
     const marketRef = collection(db, "market_listings");
     
-    // onSnapshot listens for changes continuously without refreshing
     onSnapshot(marketRef, (snapshot) => {
         const container = document.getElementById('market-container');
-        container.innerHTML = ''; // Clear current listings
+        if(!container) return;
+        container.innerHTML = ''; 
         
         if (snapshot.empty) {
-            container.innerHTML = '<p>The market is completely empty! Be the first to sell something.</p>';
+            container.innerHTML = '<p style="color:#bdc3c7;">The market is completely empty! Be the first to sell something.</p>';
             return;
         }
 
         snapshot.forEach((docSnap) => {
             const listing = docSnap.data();
             const docId = docSnap.id;
-            const crop = crops[listing.cropId];
+            const item = allItems[listing.cropId];
             
-            // Don't render if crop data is missing
-            if(!crop) return;
+            // Skip broken/old listings that don't match your JSON files
+            if(!item) return; 
 
             const isMyListing = listing.sellerEmail === currentUser.email;
             
             const card = document.createElement('div');
             card.className = 'market-card';
             card.innerHTML = `
-                <h3>${crop.icon} ${crop.name}</h3>
+                <h3>${item.icon} ${item.name}</h3>
                 <p><strong>Seller:</strong> ${listing.sellerName} ${isMyListing ? '(You)' : ''}</p>
                 <p><strong>Amount Available:</strong> <span class="badge">${listing.amount}</span></p>
                 <p><strong>Price:</strong> $${listing.pricePerItem} each</p>
                 <hr style="border: 1px solid #2c3e50; margin: 10px 0;">
             `;
 
-            // If it's your own listing, show a cancel button. If it's someone else's, show Buy.
             if (isMyListing) {
                 const cancelBtn = document.createElement('button');
                 cancelBtn.innerText = "❌ Cancel Listing";
@@ -152,9 +119,9 @@ function listenToMarket() {
                 card.appendChild(cancelBtn);
             } else {
                 const buyBtn = document.createElement('button');
-                buyBtn.innerText = "🛒 Buy Crops";
+                buyBtn.innerText = "🛒 Buy Goods";
                 buyBtn.style.backgroundColor = "#3498db";
-                buyBtn.onclick = () => buyListing(docId, listing);
+                buyBtn.onclick = () => buyListing(docId, listing, item);
                 card.appendChild(buyBtn);
             }
 
@@ -163,9 +130,9 @@ function listenToMarket() {
     });
 }
 
-// 3. Buy a listing (Partial or Full)
-window.buyListing = async function(docId, listing) {
-    const amountToBuy = parseInt(prompt(`How many ${crops[listing.cropId].name} do you want to buy? (Max: ${listing.amount})`, listing.amount));
+// 3. Buy a listing
+window.buyListing = async function(docId, listing, itemObj) {
+    const amountToBuy = parseInt(prompt(`How many ${itemObj.name} do you want to buy? (Max: ${listing.amount})`, listing.amount));
     
     if (isNaN(amountToBuy) || amountToBuy <= 0) return;
     if (amountToBuy > listing.amount) {
@@ -175,32 +142,23 @@ window.buyListing = async function(docId, listing) {
 
     const totalCost = amountToBuy * listing.pricePerItem;
 
-    if (state.money < totalCost) {
+    if (!window.marketBridge.hasMoney(totalCost)) {
         showMessage(`Not enough money! You need $${totalCost}.`);
         return;
     }
 
     try {
-        // 1. Deduct money and add crop locally
-        state.money -= totalCost;
-        if (state.inventory[listing.cropId] === undefined) state.inventory[listing.cropId] = 0;
-        state.inventory[listing.cropId] += amountToBuy;
-        if(state.stats) state.stats.totalSpent += totalCost;
-        
-        saveLocalState();
-        populateDropdown();
+        // Live memory logic via Bridge
+        window.marketBridge.spendMoney(totalCost);
+        window.marketBridge.addItem(listing.cropId, amountToBuy);
 
         const docRef = doc(db, "market_listings", docId);
-
-        // 2. Update or Delete Market Listing
         if (amountToBuy === listing.amount) {
             await deleteDoc(docRef);
         } else {
             await updateDoc(docRef, { amount: listing.amount - amountToBuy });
         }
         
-        // 3. NEW: SEND MAIL TO THE SELLER
-        // We make sure the player isn't buying their own listing before sending mail
         if (listing.sellerEmail !== currentUser.email) {
             await addDoc(collection(db, "mailbox"), {
                 recipientEmail: listing.sellerEmail,
@@ -212,26 +170,27 @@ window.buyListing = async function(docId, listing) {
             });
         }
 
-        showMessage(`Successfully bought ${amountToBuy} ${crops[listing.cropId].name} for $${totalCost}!`);
+        showMessage(`Successfully bought ${amountToBuy} ${itemObj.name} for $${totalCost}!`);
     } catch (e) {
         console.error("Error buying: ", e);
         showMessage("Transaction failed.");
+        // Rollback
+        window.marketBridge.addMoney(totalCost); 
+        window.marketBridge.deductItem(listing.cropId, amountToBuy);
     }
 }
 
-// 4. Cancel a listing and get items back
-window.cancelListing = async function(docId, cropId, amount) {
-    if(confirm("Are you sure you want to cancel this listing and take the crops back?")) {
+// 4. Cancel a listing
+window.cancelListing = async function(docId, itemId, amount) {
+    if(confirm("Are you sure you want to cancel this listing and take the goods back?")) {
         try {
-            state.inventory[cropId] += amount;
-            saveLocalState();
-            populateDropdown();
-            
+            window.marketBridge.addItem(itemId, amount);
             await deleteDoc(doc(db, "market_listings", docId));
-            showMessage("Listing cancelled. Crops returned to inventory.");
+            showMessage("Listing cancelled. Goods returned to inventory.");
         } catch (e) {
             console.error("Error cancelling: ", e);
             showMessage("Failed to cancel listing.");
+            window.marketBridge.deductItem(itemId, amount);
         }
     }
 }

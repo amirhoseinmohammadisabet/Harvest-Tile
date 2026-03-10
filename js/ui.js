@@ -1,46 +1,48 @@
-function switchTab(tab) {
-    const farmView = document.getElementById('farm-view');
-    const shedView = document.getElementById('shed-view');
-    const barnView = document.getElementById('barn-view'); 
-    const invView = document.getElementById('inventory-view');
-    
-    const tabFarmBtn = document.getElementById('tab-farm');
-    const tabShedBtn = document.getElementById('tab-shed');
-    const tabBarnBtn = document.getElementById('tab-barn'); 
-    const tabInvBtn = document.getElementById('tab-inventory');
+// ==========================================
+// ui.js - User Interface & Rendering
+// ==========================================
 
-    farmView.style.display = 'none';
-    shedView.style.display = 'none';
-    if (barnView) barnView.style.display = 'none'; 
-    if (invView) invView.style.display = 'none';
+// --- Helper: Centralize Global Money ---
+function updateGlobalMoney() {
+    const globalMoney = document.getElementById('player-money'); // CHANGED THIS LINE
+    if (globalMoney) globalMoney.innerText = state.money;
+}
+
+// --- Main Tabs ---
+function switchTab(tab) {
+    const views = ['farm-view', 'shed-view', 'barn-view', 'dukun-view', 'inventory-view'];
+    const btns = ['tab-farm', 'tab-shed', 'tab-barn', 'tab-dukun', 'tab-inventory'];
+
+    views.forEach(v => { const el = document.getElementById(v); if(el) el.style.display = 'none'; });
+    btns.forEach(b => { const el = document.getElementById(b); if(el) el.style.backgroundColor = '#7f8c8d'; });
+
+    const activeView = document.getElementById(`${tab}-view`);
+    const activeBtn = document.getElementById(`tab-${tab}`);
     
-    tabFarmBtn.style.backgroundColor = '#7f8c8d'; 
-    tabShedBtn.style.backgroundColor = '#7f8c8d'; 
-    if (tabBarnBtn) tabBarnBtn.style.backgroundColor = '#7f8c8d'; 
-    if (tabInvBtn) tabInvBtn.style.backgroundColor = '#7f8c8d';
+    if (activeView) activeView.style.display = 'block';
 
     if (tab === 'farm') {
-        farmView.style.display = 'block';
-        tabFarmBtn.style.backgroundColor = '#f39c12'; 
+        if(activeBtn) activeBtn.style.backgroundColor = '#f39c12';
         updateUI();
         renderFarm();
     } else if (tab === 'shed') {
-        shedView.style.display = 'block';
-        tabShedBtn.style.backgroundColor = '#8e44ad'; 
+        if(activeBtn) activeBtn.style.backgroundColor = '#8e44ad';
         updateShedUI();
         renderShedFloor();
     } else if (tab === 'barn') {
-        if (barnView) barnView.style.display = 'block';
-        if (tabBarnBtn) tabBarnBtn.style.backgroundColor = '#e67e22'; 
+        if(activeBtn) activeBtn.style.backgroundColor = '#e67e22';
         updateBarnUI();
         renderBarnFloor();
+    } else if (tab === 'dukun') {
+        if(activeBtn) activeBtn.style.backgroundColor = '#2ecc71';
+        updateDukunUI(); 
     } else if (tab === 'inventory') {
-        if (invView) invView.style.display = 'block';
-        if (tabInvBtn) tabInvBtn.style.backgroundColor = '#2980b9'; 
+        if(activeBtn) activeBtn.style.backgroundColor = '#2980b9';
         renderInventory();
     }
 }
 
+// --- Sub-Tabs ---
 window.switchShedTab = function(type) {
     state.activeShedTab = type;
     updateShedTabs();
@@ -57,6 +59,27 @@ window.switchBarnTab = function(type) {
     renderBarnFloor();
 };
 
+window.switchDukunTab = function(type) {
+    const localView = document.getElementById('dukun-local-view');
+    const globalView = document.getElementById('dukun-global-view');
+    const localBtn = document.getElementById('dukun-tab-local');
+    const globalBtn = document.getElementById('dukun-tab-global');
+
+    if (type === 'local') {
+        if(localView) localView.style.display = 'block';
+        if(globalView) globalView.style.display = 'none';
+        if(localBtn) localBtn.style.backgroundColor = '#e67e22';
+        if(globalBtn) globalBtn.style.backgroundColor = '#7f8c8d';
+    } else {
+        if(localView) localView.style.display = 'none';
+        if(globalView) globalView.style.display = 'block';
+        if(localBtn) localBtn.style.backgroundColor = '#7f8c8d';
+        if(globalBtn) globalBtn.style.backgroundColor = '#2ecc71';
+    }
+    updateDukunUI();
+};
+
+// --- Tab Updaters ---
 function updateShedTabs() {
     const tabsContainer = document.getElementById('shed-tabs');
     if (!tabsContainer) return;
@@ -118,53 +141,45 @@ function updateArtisanSelector() {
     updateRecipeInfo();
 }
 
+// Generates the core DOM elements once
 function generateUI() {
-    const statsContainer = document.getElementById('stats-container');
-    const sellContainer = document.getElementById('sell-buttons-container');
     const seedSelector = document.getElementById('seed-selector-container');
     const unlockContainer = document.getElementById('unlock-buttons-container');
-
-    const shedStatsContainer = document.getElementById('shed-stats-container');
-    const shedSellContainer = document.getElementById('shed-sell-buttons-container');
     
-    const barnStatsContainer = document.getElementById('barn-stats-container');
-    const barnSellContainer = document.getElementById('barn-sell-buttons-container');
+    const dukunCrops = document.getElementById('dukun-crops-container');
+    const dukunArtisan = document.getElementById('dukun-artisan-container');
+    const dukunAnimal = document.getElementById('dukun-animal-container');
 
-    sellContainer.className = 'sell-grid';
-    shedSellContainer.className = 'sell-grid';
-    if(barnSellContainer) barnSellContainer.className = 'sell-grid';
-    seedSelector.className = 'flex-wrap-container';
-    unlockContainer.className = 'flex-wrap-container';
+    if(seedSelector) seedSelector.className = 'flex-wrap-container';
+    if(unlockContainer) unlockContainer.className = 'flex-wrap-container';
 
-    statsContainer.innerHTML = `<div>💵 Money: $<span id="money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
-    shedStatsContainer.innerHTML = `<div>💵 Money: $<span id="shed-money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
-    if(barnStatsContainer) barnStatsContainer.innerHTML = `
-        <div>💵 Money: $<span id="barn-money" style="color: #2ecc71; font-weight: bold;">0</span></div>
-        <div>🌾 Feed: <span id="barn-feed-count" style="color: #f39c12; font-weight: bold;">0</span></div>
-    `;
+    if(seedSelector) seedSelector.innerHTML = '';
+    if(unlockContainer) unlockContainer.innerHTML = '';
+    if(dukunCrops) dukunCrops.innerHTML = '';
+    if(dukunArtisan) dukunArtisan.innerHTML = '';
+    if(dukunAnimal) dukunAnimal.innerHTML = '';
 
-    sellContainer.innerHTML = '';
-    shedSellContainer.innerHTML = '';
-    if(barnSellContainer) barnSellContainer.innerHTML = '';
-    seedSelector.innerHTML = '';
-    unlockContainer.innerHTML = '';
-
+    // Crops
     Object.keys(crops).forEach((cropId) => {
         const crop = crops[cropId];
-        statsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="${cropId}Count">0</span></div>`;
-        sellContainer.innerHTML += `
-            <div class="sell-item" id="${cropId}SellDiv">
-                <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${crop.icon} ${crop.name}</div>
-                <button id="sell${cropId}Btn" onclick="sell('${cropId}', 1)">Sell 1 ($${crop.sellPrice})</button>
-                <button id="sellAll${cropId}Btn" onclick="sellAll('${cropId}')" style="background-color: #e67e22;">Sell All</button>
-            </div>
-        `;
-        seedSelector.innerHTML += `
-            <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
-                <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
-            </label>
-        `;
-        if (crop.unlockPrice > 0) {
+        if(dukunCrops) {
+            dukunCrops.innerHTML += `
+                <div class="sell-item" id="${cropId}SellDiv">
+                    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${crop.icon} ${crop.name}</div>
+                    <div style="text-align: center; color: #f1c40f; font-weight: bold; margin-bottom: 5px;">Qty: <span id="dukun-qty-${cropId}">0</span></div>
+                    <button id="sell${cropId}Btn" onclick="sell('${cropId}', 1)">Sell 1 ($${crop.sellPrice})</button>
+                    <button id="sellAll${cropId}Btn" onclick="sellAll('${cropId}')" style="background-color: #e67e22;">Sell All</button>
+                </div>
+            `;
+        }
+        if(seedSelector) {
+            seedSelector.innerHTML += `
+                <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
+                    <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
+                </label>
+            `;
+        }
+        if (crop.unlockPrice > 0 && unlockContainer) {
             unlockContainer.innerHTML += `
                 <button id="buy${cropId}Btn" onclick="unlockCrop('${cropId}')" style="background-color: ${crop.growingColor}; color: #2c3e50;">
                     🔓 Unlock ${crop.name} ($${crop.unlockPrice})
@@ -173,27 +188,21 @@ function generateUI() {
         }
     });
 
+    // Artisan & Animals
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
-        
-        if (item.machine === 'animal') {
-            if (barnStatsContainer) barnStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="barn-${id}Count">0</span></div>`;
-            if (barnSellContainer) barnSellContainer.innerHTML += `
-                <div class="sell-item" id="${id}SellDiv">
-                    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${item.icon} ${item.name}</div>
-                    <button id="sell${id}Btn" onclick="sellArtisan('${id}')">Sell 1 ($${item.sellPrice})</button>
-                    <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
-                </div>
-            `;
+        const htmlBlock = `
+            <div class="sell-item" id="${id}SellDiv">
+                <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${item.icon} ${item.name}</div>
+                <div style="text-align: center; color: #f1c40f; font-weight: bold; margin-bottom: 5px;">Qty: <span id="dukun-qty-${id}">0</span></div>
+                <button id="sell${id}Btn" onclick="sellArtisan('${id}')">Sell 1 ($${item.sellPrice})</button>
+                <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
+            </div>
+        `;
+        if (item.machine === 'animal' || item.id === 'animal_feed' || item.id === 'pulp') {
+            if(dukunAnimal) dukunAnimal.innerHTML += htmlBlock;
         } else {
-            shedStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="shed-${id}Count">0</span></div>`;
-            shedSellContainer.innerHTML += `
-                <div class="sell-item" id="${id}SellDiv">
-                    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${item.icon} ${item.name}</div>
-                    <button id="sell${id}Btn" onclick="sellArtisan('${id}')">Sell 1 ($${item.sellPrice})</button>
-                    <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
-                </div>
-            `;
+            if(dukunArtisan) dukunArtisan.innerHTML += htmlBlock;
         }
     });
 
@@ -209,17 +218,17 @@ window.updateRecipeInfo = function() {
     if (infoSpan) infoSpan.innerText = `(Needs ${recipe.inputAmount} ${crops[recipe.input] ? crops[recipe.input].name : artisanData[recipe.input].name})`;
 }
 
+// -----------------------------------------------------
+// UPDATERS (Run frequently to keep UI fresh)
+// -----------------------------------------------------
+
 function updateUI() {
-    const moneyDisplay = document.getElementById('money');
-    if(moneyDisplay) moneyDisplay.innerText = state.money;
-    
+    updateGlobalMoney();
+
     const buyLotBtn = document.querySelector('button[onclick="buyLot()"]');
     if (buyLotBtn) buyLotBtn.innerText = `Buy Empty Lot ($${state.lotPrice})`;
 
     Object.keys(crops).forEach(cropId => {
-        const countSpan = document.getElementById(`${cropId}Count`);
-        if (countSpan) countSpan.innerText = state.inventory[cropId] || 0;
-
         const radioLabel = document.getElementById(`${cropId}RadioLabel`);
         const unlockBtn = document.getElementById(`buy${cropId}Btn`);
         
@@ -229,18 +238,6 @@ function updateUI() {
         } else {
             if (radioLabel) radioLabel.style.display = 'none';
             if (unlockBtn) unlockBtn.style.display = 'inline-block';
-        }
-
-        const isLow = (state.inventory[cropId] <= 1);
-        const sellBtn = document.getElementById(`sell${cropId}Btn`);
-        const sellAllBtn = document.getElementById(`sellAll${cropId}Btn`);
-        
-        if (state.unlockedCrops[cropId]) {
-            if (sellBtn) sellBtn.disabled = isLow;
-            if (sellAllBtn) sellAllBtn.disabled = isLow;
-        } else {
-            if (sellBtn) sellBtn.disabled = true;
-            if (sellAllBtn) sellAllBtn.disabled = true;
         }
     });
 
@@ -261,31 +258,19 @@ function updateUI() {
     }
 
     const invView = document.getElementById('inventory-view');
+    const dukunView = document.getElementById('dukun-view');
     if (invView && invView.style.display === 'block') renderInventory();
+    if (dukunView && dukunView.style.display === 'block') updateDukunUI();
 }
 
 function updateShedUI() {
+    updateGlobalMoney();
     if (!state.shedUnlocked) return;
     document.getElementById('shed-locked').style.display = 'none';
     document.getElementById('shed-unlocked').style.display = 'block';
 
-    const shedMoney = document.getElementById('shed-money');
-    if (shedMoney) shedMoney.innerText = state.money;
-
-    Object.keys(artisanData).forEach(id => {
-        if (artisanData[id].machine !== 'animal') {
-            const countSpan = document.getElementById(`shed-${id}Count`);
-            if (countSpan) countSpan.innerText = state.inventory[id] || 0;
-            const isLow = (state.inventory[id] <= 0); 
-            const sellBtn = document.getElementById(`sell${id}Btn`);
-            const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
-            if (sellBtn) sellBtn.disabled = isLow;
-            if (sellAllBtn) sellAllBtn.disabled = isLow;
-        }
-    });
-
     const storeDiv = document.getElementById('shed-store-container');
-    if (storeDiv) {
+    if (storeDiv && storeDiv.children.length === 0) {
         storeDiv.innerHTML = '';
         Object.keys(machinesData).forEach(id => {
             const m = machinesData[id];
@@ -301,30 +286,16 @@ function updateShedUI() {
 }
 
 function updateBarnUI() {
+    updateGlobalMoney();
     if (!state.barnUnlocked) return;
     document.getElementById('barn-locked').style.display = 'none';
     document.getElementById('barn-unlocked').style.display = 'block';
 
-    const barnMoney = document.getElementById('barn-money');
-    if (barnMoney) barnMoney.innerText = state.money;
-    
     const feedCount = document.getElementById('barn-feed-count');
     if (feedCount) feedCount.innerText = state.inventory['animal_feed'] || 0;
 
-    Object.keys(artisanData).forEach(id => {
-        if (artisanData[id].machine === 'animal') {
-            const countSpan = document.getElementById(`barn-${id}Count`);
-            if (countSpan) countSpan.innerText = state.inventory[id] || 0;
-            const sellBtn = document.getElementById(`sell${id}Btn`);
-            const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
-            const isLow = (state.inventory[id] <= 0); 
-            if (sellBtn) sellBtn.disabled = isLow;
-            if (sellAllBtn) sellAllBtn.disabled = isLow;
-        }
-    });
-
     const storeDiv = document.getElementById('barn-store-container');
-    if (storeDiv) {
+    if (storeDiv && storeDiv.children.length === 0) {
         storeDiv.innerHTML = '';
         Object.keys(animalData).forEach(id => {
             const a = animalData[id];
@@ -338,6 +309,73 @@ function updateBarnUI() {
     }
     updateBarnTabs();
 }
+
+function updateDukunUI() {
+    updateGlobalMoney();
+
+    // 1. Update the Local Sell Buttons
+    Object.keys(crops).forEach(cropId => {
+        const qtySpan = document.getElementById(`dukun-qty-${cropId}`);
+        if (qtySpan) qtySpan.innerText = state.inventory[cropId] || 0;
+
+        const isLow = (state.inventory[cropId] <= 1);
+        const sellBtn = document.getElementById(`sell${cropId}Btn`);
+        const sellAllBtn = document.getElementById(`sellAll${cropId}Btn`);
+        
+        if (state.unlockedCrops[cropId]) {
+            if (sellBtn) sellBtn.disabled = isLow;
+            if (sellAllBtn) sellAllBtn.disabled = isLow;
+        } else {
+            if (sellBtn) sellBtn.disabled = true;
+            if (sellAllBtn) sellAllBtn.disabled = true;
+        }
+    });
+
+    Object.keys(artisanData).forEach(id => {
+        const qtySpan = document.getElementById(`dukun-qty-${id}`);
+        if (qtySpan) qtySpan.innerText = state.inventory[id] || 0;
+
+        const isLow = (state.inventory[id] <= 0); 
+        const sellBtn = document.getElementById(`sell${id}Btn`);
+        const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
+        if (sellBtn) sellBtn.disabled = isLow;
+        if (sellAllBtn) sellAllBtn.disabled = isLow;
+    });
+
+    // 2. Populate the Global P2P Dropdown dynamically!
+    const p2pSelect = document.getElementById('sell-crop-select');
+    if (p2pSelect) {
+        const currentSelection = p2pSelect.value; 
+        p2pSelect.innerHTML = '';
+        
+        const allItems = { ...crops, ...artisanData };
+        let hasItems = false;
+
+        Object.keys(allItems).forEach(id => {
+            // Only let them sell things they actually have!
+            const amountOwned = state.inventory[id] || 0;
+            // Prevent selling the very last seed for crops
+            const minKeep = crops[id] ? 1 : 0; 
+
+            if (amountOwned > minKeep) {
+                hasItems = true;
+                const availableToSell = amountOwned - minKeep;
+                p2pSelect.innerHTML += `<option value="${id}">${allItems[id].icon} ${allItems[id].name} (Available: ${availableToSell})</option>`;
+            }
+        });
+
+        if (!hasItems) {
+            p2pSelect.innerHTML = `<option value="">Your inventory is empty!</option>`;
+        } else if (currentSelection) {
+            // Try to keep their selection if they just refreshed the UI
+            p2pSelect.value = currentSelection;
+        }
+    }
+}
+
+// -----------------------------------------------------
+// RENDERERS (Drawing Grids)
+// -----------------------------------------------------
 
 function renderFarm() {
     if(document.getElementById('farm-view').style.display === 'none') return;
