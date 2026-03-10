@@ -133,7 +133,6 @@ function updateArtisanSelector() {
     updateRecipeInfo();
 }
 
-// --- NEW BEAUTIFUL DUKUN CARD GENERATOR ---
 function createDukunCard(item, id, isCrop) {
     const minKeep = isCrop ? 1 : 0;
     const color = isCrop ? '#f39c12' : (item.machine === 'animal' || item.id === 'animal_feed' || item.id === 'pulp' ? '#e67e22' : '#9b59b6');
@@ -169,7 +168,6 @@ function generateUI() {
     if(dukunArtisan) dukunArtisan.innerHTML = '';
     if(dukunAnimal) dukunAnimal.innerHTML = '';
 
-    // Generate Crops
     Object.keys(crops).forEach((cropId) => {
         const crop = crops[cropId];
         if(dukunCrops) dukunCrops.innerHTML += createDukunCard(crop, cropId, true);
@@ -177,7 +175,7 @@ function generateUI() {
         if(seedSelector) {
             seedSelector.innerHTML += `
                 <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
-                    <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
+                    <input type="radio" name="seed" value="${cropId}" onchange="updateSeedInfo()"> ${crop.icon} ${crop.name}
                 </label>
             `;
         }
@@ -190,7 +188,6 @@ function generateUI() {
         }
     });
 
-    // Generate Artisan & Animals
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
         const cardHTML = createDukunCard(item, id, false);
@@ -203,16 +200,44 @@ function generateUI() {
     });
 
     const wheatRadio = document.querySelector('input[value="wheat"]');
-    if (wheatRadio) wheatRadio.checked = true;
+    if (wheatRadio) {
+        wheatRadio.checked = true;
+        updateSeedInfo();
+    }
 }
 
+window.updateSeedInfo = function() {
+    const checked = document.querySelector('input[name="seed"]:checked');
+    if (!checked) return;
+    
+    const seedId = checked.value;
+    const crop = crops[seedId];
+    const infoSpan = document.getElementById('selected-seed-info');
+    
+    if (infoSpan) {
+        const ownedCount = state.inventory[seedId] || 0;
+        infoSpan.innerText = `You have ${ownedCount} of ${crop.name}`;
+    }
+};
+
 window.updateRecipeInfo = function() {
-    const recipeId = getSelectedArtisan();
-    if (!recipeId) return;
+    const checked = document.querySelector('input[name="artisan-recipe"]:checked');
+    if (!checked) return;
+    
+    const recipeId = checked.value;
     const recipe = artisanData[recipeId];
     const infoSpan = document.getElementById('selected-recipe-info');
-    if (infoSpan) infoSpan.innerText = `(Needs ${recipe.inputAmount} ${crops[recipe.input] ? crops[recipe.input].name : artisanData[recipe.input].name})`;
-}
+    
+    if (infoSpan) {
+        const inputName = crops[recipe.input] ? crops[recipe.input].name : artisanData[recipe.input].name;
+        const ownedAmount = state.inventory[recipe.input] || 0;
+        infoSpan.innerText = `(Needs ${recipe.inputAmount} ${inputName}) You have ${ownedAmount} ${inputName}`;
+    }
+};
+
+// -----------------------------------------------------
+// UPDATERS (Run frequently to keep UI fresh)
+// -----------------------------------------------------
 
 function updateUI() {
     updateGlobalMoney();
@@ -248,12 +273,16 @@ function updateUI() {
         document.getElementById('plantAllBtn').style.display = 'none';
     }
 
+    if (typeof updateSeedInfo === 'function') updateSeedInfo();
+    if (typeof updateRecipeInfo === 'function') updateRecipeInfo();
+
     const invView = document.getElementById('inventory-view');
     const dukunView = document.getElementById('dukun-view');
     if (invView && invView.style.display === 'block') renderInventory();
     if (dukunView && dukunView.style.display === 'block') updateDukunUI();
 }
 
+// FIX: Buttons now accurately update their text instead of freezing!
 function updateShedUI() {
     updateGlobalMoney();
     if (!state.shedUnlocked) return;
@@ -261,21 +290,31 @@ function updateShedUI() {
     document.getElementById('shed-unlocked').style.display = 'block';
 
     const storeDiv = document.getElementById('shed-store-container');
-    if (storeDiv && storeDiv.children.length === 0) {
-        storeDiv.innerHTML = '';
-        Object.keys(machinesData).forEach(id => {
-            const m = machinesData[id];
-            const currentPrice = state.machinePrices[id];
-            storeDiv.innerHTML += `
-                <button onclick="buyMachine('${id}')" style="background-color: #9b59b6; color: white;">
-                    Buy ${m.icon} ${m.name} ($${currentPrice})
-                </button>
-            `;
-        });
+    if (storeDiv) {
+        if (storeDiv.children.length === 0) {
+            storeDiv.innerHTML = '';
+            Object.keys(machinesData).forEach(id => {
+                const m = machinesData[id];
+                storeDiv.innerHTML += `
+                    <button id="buy-machine-${id}-btn" onclick="buyMachine('${id}')" style="background-color: #9b59b6; color: white;">
+                        Buy ${m.icon} ${m.name} ($${state.machinePrices[id]})
+                    </button>
+                `;
+            });
+        } else {
+            // Actively update the text of existing buttons!
+            Object.keys(machinesData).forEach(id => {
+                const btn = document.getElementById(`buy-machine-${id}-btn`);
+                const m = machinesData[id];
+                if (btn) btn.innerText = `Buy ${m.icon} ${m.name} ($${state.machinePrices[id]})`;
+            });
+        }
     }
     updateShedTabs();
+    if (typeof updateRecipeInfo === 'function') updateRecipeInfo();
 }
 
+// FIX: Buttons now accurately update their text instead of freezing!
 function updateBarnUI() {
     updateGlobalMoney();
     if (!state.barnUnlocked) return;
@@ -286,17 +325,25 @@ function updateBarnUI() {
     if (feedCount) feedCount.innerText = state.inventory['animal_feed'] || 0;
 
     const storeDiv = document.getElementById('barn-store-container');
-    if (storeDiv && storeDiv.children.length === 0) {
-        storeDiv.innerHTML = '';
-        Object.keys(animalData).forEach(id => {
-            const a = animalData[id];
-            const currentPrice = state.animalPrices[id];
-            storeDiv.innerHTML += `
-                <button onclick="buyAnimal('${id}')" style="background-color: #d35400; color: white;">
-                    Buy ${a.icon} ${a.name} ($${currentPrice})
-                </button>
-            `;
-        });
+    if (storeDiv) {
+        if (storeDiv.children.length === 0) {
+            storeDiv.innerHTML = '';
+            Object.keys(animalData).forEach(id => {
+                const a = animalData[id];
+                storeDiv.innerHTML += `
+                    <button id="buy-animal-${id}-btn" onclick="buyAnimal('${id}')" style="background-color: #d35400; color: white;">
+                        Buy ${a.icon} ${a.name} ($${state.animalPrices[id]})
+                    </button>
+                `;
+            });
+        } else {
+            // Actively update the text of existing buttons!
+            Object.keys(animalData).forEach(id => {
+                const btn = document.getElementById(`buy-animal-${id}-btn`);
+                const a = animalData[id];
+                if (btn) btn.innerText = `Buy ${a.icon} ${a.name} ($${state.animalPrices[id]})`;
+            });
+        }
     }
     updateBarnTabs();
 }
@@ -304,7 +351,6 @@ function updateBarnUI() {
 function updateDukunUI() {
     updateGlobalMoney();
 
-    // 1. Update Crop quantities & disable logic beautifully
     Object.keys(crops).forEach(id => {
         const qtySpan = document.getElementById(`dukun-qty-${id}`);
         const currentQty = state.inventory[id] || 0;
@@ -313,7 +359,7 @@ function updateDukunUI() {
         const cardDiv = document.getElementById(`${id}SellDiv`);
         const sellBtn = document.getElementById(`sell${id}Btn`);
         const sellInput = document.getElementById(`sell-input-${id}`);
-        const isLow = currentQty <= 1; // Must keep 1 seed
+        const isLow = currentQty <= 1; 
         
         if (state.unlockedCrops[id]) {
             if (cardDiv) cardDiv.style.opacity = isLow ? "0.5" : "1";
@@ -326,7 +372,6 @@ function updateDukunUI() {
         }
     });
 
-    // 2. Update Artisan/Animal quantities & disable logic
     Object.keys(artisanData).forEach(id => {
         const qtySpan = document.getElementById(`dukun-qty-${id}`);
         const currentQty = state.inventory[id] || 0;
@@ -342,7 +387,6 @@ function updateDukunUI() {
         if (sellInput) sellInput.disabled = isLow;
     });
 
-    // 3. Populate Global P2P Dropdown
     const p2pSelect = document.getElementById('sell-crop-select');
     if (p2pSelect) {
         const currentSelection = p2pSelect.value; 
@@ -368,6 +412,10 @@ function updateDukunUI() {
         }
     }
 }
+
+// -----------------------------------------------------
+// RENDERERS (Drawing Grids)
+// -----------------------------------------------------
 
 function renderFarm() {
     if(document.getElementById('farm-view').style.display === 'none') return;
