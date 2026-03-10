@@ -149,34 +149,47 @@ function plantAll() {
     }
 }
 
-function sell(cropType, amount = 1) {
-    if (state.inventory[cropType] - amount >= 1) { 
-        state.inventory[cropType] -= amount;
-        const earned = (crops[cropType].sellPrice * amount);
-        state.money += earned;
-        state.stats.totalEarned += earned;
-        playSound('money');
-        updateUI();
-        updateShedUI();
-        updateBarnUI();
-    } else {
-        showMessage(`You must keep at least 1 ${crops[cropType].name} seed!`);
+// --- NEW UNIFIED SELLING FUNCTION ---
+window.sellCustomAmount = function(itemId, isCrop) {
+    const inputEl = document.getElementById(`sell-input-${itemId}`);
+    if (!inputEl) return;
+    
+    const amount = parseInt(inputEl.value);
+    if (isNaN(amount) || amount <= 0) {
+        showMessage("Please enter a valid amount.");
+        return;
     }
-}
 
-function sellAll(cropType) {
-    if (state.inventory[cropType] > 1) {
-        const amountToSell = state.inventory[cropType] - 1;
-        state.inventory[cropType] -= amountToSell;
-        const earned = (crops[cropType].sellPrice * amountToSell);
-        state.money += earned;
-        state.stats.totalEarned += earned;
-        playSound('money');
-        updateUI();
-        updateShedUI();
-        updateBarnUI();
+    const minKeep = isCrop ? 1 : 0;
+    const currentStock = state.inventory[itemId] || 0;
+    const availableToSell = currentStock - minKeep;
+
+    if (amount > availableToSell) {
+        if (isCrop && currentStock === 1) {
+            const cropName = crops[itemId] ? crops[itemId].name : itemId;
+            showMessage(`You must keep at least 1 ${cropName} seed!`);
+        } else {
+            showMessage(`You don't have enough to sell! (Max available: ${availableToSell})`);
+        }
+        return;
     }
-}
+
+    state.inventory[itemId] -= amount;
+    const itemData = isCrop ? crops[itemId] : artisanData[itemId];
+    const earned = itemData.sellPrice * amount;
+    
+    state.money += earned;
+    if(state.stats) state.stats.totalEarned += earned;
+    
+    playSound('money');
+    saveGame();
+    
+    inputEl.value = 1; // Reset to 1 after selling
+    
+    updateUI(); 
+    updateShedUI(); 
+    updateBarnUI();
+};
 
 function buyLot() {
     if (state.money >= state.lotPrice) {
@@ -295,13 +308,10 @@ window.collectMachine = function(index) {
     const machine = state.machines[index];
     const recipe = artisanData[machine.recipe];
 
-    // BUG FIX: Safer addition so missing items don't become NaN!
     state.inventory[recipe.id] = (state.inventory[recipe.id] || 0) + 1;
-    
     if (machinesData[machine.type].id === 'juicer') {
         state.inventory['pulp'] = (state.inventory['pulp'] || 0) + 2; 
     }
-    
     machine.isProcessing = false;
     machine.isReady = false;
     machine.finishTime = 0;
@@ -350,9 +360,7 @@ window.collectAllMachines = function() {
     state.machines.forEach((machine) => {
         if (machine.isReady) {
             const recipe = artisanData[machine.recipe];
-            // BUG FIX: Safer addition!
             state.inventory[recipe.id] = (state.inventory[recipe.id] || 0) + 1;
-            
             if (machinesData[machine.type].id === 'juicer') {
                 state.inventory['pulp'] = (state.inventory['pulp'] || 0) + 2; 
             }
@@ -377,40 +385,6 @@ window.collectAllMachines = function() {
     }
 }
 
-window.sellArtisan = function(itemId) {
-    if (state.inventory[itemId] >= 1) {
-        state.inventory[itemId] -= 1;
-        const earned = artisanData[itemId].sellPrice;
-        state.money += earned;
-        if(state.stats) state.stats.totalEarned += earned;
-        playSound('money');
-        saveGame();
-        updateUI(); 
-        updateShedUI(); 
-        updateBarnUI();
-    } else {
-        showMessage("You don't have any to sell!");
-    }
-}
-
-window.sellAllArtisan = function(itemId) {
-    if (state.inventory[itemId] >= 1) {
-        const amountToSell = state.inventory[itemId]; 
-        state.inventory[itemId] -= amountToSell;
-        const earned = artisanData[itemId].sellPrice * amountToSell;
-        state.money += earned;
-        if(state.stats) state.stats.totalEarned += earned;
-        playSound('money');
-        saveGame();
-        updateUI(); 
-        updateShedUI();
-        updateBarnUI();
-    } else {
-        showMessage("You don't have any to sell!");
-    }
-}
-
-// --- BARN ACTIONS ---
 window.unlockBarn = function() {
     if (state.money >= 75000) {
         state.money -= 75000;
@@ -586,25 +560,7 @@ function startGameLoop() {
     }, 1000);
 }
 
-// --- DUKUN MARKET BRIDGE ---
-window.deductMarketItem = function(itemId, amount) {
-    const parsedAmount = parseInt(amount);
-    
-    // Check if we actually have enough to sell
-    if (state.inventory[itemId] >= parsedAmount) {
-        state.inventory[itemId] -= parsedAmount;
-        
-        saveGame();
-        updateUI(); // Refreshes the dropdown and inventory visuals instantly
-        
-        return true; // Tells dukun.js it was successful
-    }
-    
-    showMessage("Not enough items in inventory!");
-    return false; // Tells dukun.js it failed
-};
-
-// --- P2P MARKET BRIDGE ---
+// P2P MARKET BRIDGE
 window.marketBridge = {
     hasItem: function(itemId, amount) {
         return (state.inventory[itemId] || 0) >= amount;
