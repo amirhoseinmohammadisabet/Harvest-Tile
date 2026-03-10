@@ -158,5 +158,12 @@
         "processTime": 150,
         "sellPrice": 300,
         "icon": "🍅"
-    }
+    },
+    "pulp": { "id": "pulp", "name": "Pulp", "machine": "none", "sellPrice": 5, "icon": "🥣" },
+    "animal_feed": { "id": "animal_feed", "name": "Animal Feed", "machine": "pellet_mill", "input": "pulp", "inputAmount": 3, "processTime": 20, "sellPrice": 15, "icon": "🌾" },
+    "egg": { "id": "egg", "name": "Egg", "machine": "animal", "sellPrice": 60, "icon": "🥚" },
+    "duck_egg": { "id": "duck_egg", "name": "Duck Egg", "machine": "animal", "sellPrice": 100, "icon": "🪿" },
+    "wool": { "id": "wool", "name": "Wool", "machine": "animal", "sellPrice": 350, "icon": "🧶" },
+    "meat": { "id": "meat", "name": "Meat", "machine": "animal", "sellPrice": 500, "icon": "🥩" },
+    "milk": { "id": "milk", "name": "Milk", "machine": "animal", "sellPrice": 600, "icon": "🥛" }
 }

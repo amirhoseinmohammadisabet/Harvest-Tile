@@ -4,7 +4,7 @@
         "name": "Wheat",
         "growTime": 10,
         "yield": 2,
-        "sellPrice": 2,
+        "sellPrice": 20000000000,
         "unlockPrice": 0,
         "icon": "🌾",
         "growingColor": "#f1c40f",

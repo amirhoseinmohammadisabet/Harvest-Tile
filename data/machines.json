@@ -16,5 +16,11 @@
         "name": "Grill",
         "baseCost": 8000,
         "icon": "🔥"
+    },
+    "pellet_mill": {
+        "id": "pellet_mill",
+        "name": "Pellet Mill",
+        "baseCost": 12000,
+        "icon": "⚙️"
     }
 }

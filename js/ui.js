@@ -1,22 +1,22 @@
-// ==========================================
-// ui.js - User Interface & Rendering
-// ==========================================
-
 function switchTab(tab) {
     const farmView = document.getElementById('farm-view');
     const shedView = document.getElementById('shed-view');
+    const barnView = document.getElementById('barn-view'); 
     const invView = document.getElementById('inventory-view');
     
     const tabFarmBtn = document.getElementById('tab-farm');
     const tabShedBtn = document.getElementById('tab-shed');
+    const tabBarnBtn = document.getElementById('tab-barn'); 
     const tabInvBtn = document.getElementById('tab-inventory');
 
     farmView.style.display = 'none';
     shedView.style.display = 'none';
+    if (barnView) barnView.style.display = 'none'; 
     if (invView) invView.style.display = 'none';
     
     tabFarmBtn.style.backgroundColor = '#7f8c8d'; 
     tabShedBtn.style.backgroundColor = '#7f8c8d'; 
+    if (tabBarnBtn) tabBarnBtn.style.backgroundColor = '#7f8c8d'; 
     if (tabInvBtn) tabInvBtn.style.backgroundColor = '#7f8c8d';
 
     if (tab === 'farm') {
@@ -29,6 +29,11 @@ function switchTab(tab) {
         tabShedBtn.style.backgroundColor = '#8e44ad'; 
         updateShedUI();
         renderShedFloor();
+    } else if (tab === 'barn') {
+        if (barnView) barnView.style.display = 'block';
+        if (tabBarnBtn) tabBarnBtn.style.backgroundColor = '#e67e22'; 
+        updateBarnUI();
+        renderBarnFloor();
     } else if (tab === 'inventory') {
         if (invView) invView.style.display = 'block';
         if (tabInvBtn) tabInvBtn.style.backgroundColor = '#2980b9'; 
@@ -39,11 +44,17 @@ function switchTab(tab) {
 window.switchShedTab = function(type) {
     state.activeShedTab = type;
     updateShedTabs();
-    
     const floor = document.getElementById('shed-floor');
     if (floor) floor.innerHTML = ''; 
-    
     renderShedFloor();
+};
+
+window.switchBarnTab = function(type) {
+    state.activeBarnTab = type;
+    updateBarnTabs();
+    const floor = document.getElementById('barn-floor');
+    if (floor) floor.innerHTML = ''; 
+    renderBarnFloor();
 };
 
 function updateShedTabs() {
@@ -55,19 +66,31 @@ function updateShedTabs() {
         const mData = machinesData[type];
         const isActive = state.activeShedTab === type;
         const bgColor = isActive ? '#8e44ad' : '#7f8c8d'; 
-        
         tabsContainer.innerHTML += `
             <button onclick="switchShedTab('${type}')" style="background-color: ${bgColor}; font-size: 1rem; padding: 8px 20px; border-radius: 6px;">
                 ${mData.icon} ${mData.name}s
             </button>
         `;
     });
-
-    // NEW: Automatically update the recipe list when the tab changes!
     updateArtisanSelector(); 
 }
 
-// NEW FUNCTION: Filters the recipes based on the active tab
+function updateBarnTabs() {
+    const tabsContainer = document.getElementById('barn-tabs');
+    if (!tabsContainer) return;
+    tabsContainer.innerHTML = '';
+    Object.keys(animalData).forEach(type => {
+        const aData = animalData[type];
+        const isActive = state.activeBarnTab === type;
+        const bgColor = isActive ? '#e67e22' : '#7f8c8d'; 
+        tabsContainer.innerHTML += `
+            <button onclick="switchBarnTab('${type}')" style="background-color: ${bgColor}; font-size: 1rem; padding: 8px 20px; border-radius: 6px;">
+                ${aData.icon} ${aData.name}s
+            </button>
+        `;
+    });
+}
+
 function updateArtisanSelector() {
     const artisanSelector = document.getElementById('artisan-selector-container');
     if (!artisanSelector || !state.activeShedTab) return;
@@ -77,11 +100,8 @@ function updateArtisanSelector() {
 
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
-        
-        // Only show recipes that match the current machine tab!
         if (item.machine === state.activeShedTab) {
-            if (!firstRecipeId) firstRecipeId = id; // Remember the first one
-            
+            if (!firstRecipeId) firstRecipeId = id; 
             artisanSelector.innerHTML += `
                 <label style="cursor: pointer; padding: 5px 10px; border-radius: 4px; display: inline-block;">
                     <input type="radio" name="artisan-recipe" value="${id}" onchange="updateRecipeInfo()">
@@ -91,12 +111,10 @@ function updateArtisanSelector() {
         }
     });
 
-    // Automatically select the first valid recipe so the radio buttons are never empty
     if (firstRecipeId) {
         const firstRadio = document.querySelector(`input[name="artisan-recipe"][value="${firstRecipeId}"]`);
         if (firstRadio) firstRadio.checked = true;
     }
-
     updateRecipeInfo();
 }
 
@@ -108,26 +126,31 @@ function generateUI() {
 
     const shedStatsContainer = document.getElementById('shed-stats-container');
     const shedSellContainer = document.getElementById('shed-sell-buttons-container');
-    const shedStoreContainer = document.getElementById('shed-store-container');
-    const artisanSelector = document.getElementById('artisan-selector-container');
+    
+    const barnStatsContainer = document.getElementById('barn-stats-container');
+    const barnSellContainer = document.getElementById('barn-sell-buttons-container');
 
     sellContainer.className = 'sell-grid';
     shedSellContainer.className = 'sell-grid';
+    if(barnSellContainer) barnSellContainer.className = 'sell-grid';
     seedSelector.className = 'flex-wrap-container';
     unlockContainer.className = 'flex-wrap-container';
 
     statsContainer.innerHTML = `<div>💵 Money: $<span id="money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
     shedStatsContainer.innerHTML = `<div>💵 Money: $<span id="shed-money" style="color: #2ecc71; font-weight: bold;">0</span></div>`;
+    if(barnStatsContainer) barnStatsContainer.innerHTML = `
+        <div>💵 Money: $<span id="barn-money" style="color: #2ecc71; font-weight: bold;">0</span></div>
+        <div>🌾 Feed: <span id="barn-feed-count" style="color: #f39c12; font-weight: bold;">0</span></div>
+    `;
+
     sellContainer.innerHTML = '';
     shedSellContainer.innerHTML = '';
+    if(barnSellContainer) barnSellContainer.innerHTML = '';
     seedSelector.innerHTML = '';
     unlockContainer.innerHTML = '';
-    shedStoreContainer.innerHTML = '';
-    if (artisanSelector) artisanSelector.innerHTML = '';
 
     Object.keys(crops).forEach((cropId) => {
         const crop = crops[cropId];
-        
         statsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="${cropId}Count">0</span></div>`;
         sellContainer.innerHTML += `
             <div class="sell-item" id="${cropId}SellDiv">
@@ -136,7 +159,6 @@ function generateUI() {
                 <button id="sellAll${cropId}Btn" onclick="sellAll('${cropId}')" style="background-color: #e67e22;">Sell All</button>
             </div>
         `;
-        
         seedSelector.innerHTML += `
             <label id="${cropId}RadioLabel" style="display:none; cursor: pointer;">
                 <input type="radio" name="seed" value="${cropId}"> ${crop.icon} ${crop.name}
@@ -149,20 +171,30 @@ function generateUI() {
                 </button>
             `;
         }
-        shedStatsContainer.innerHTML += `<div>${crop.icon} ${crop.name}: <span id="shed-${cropId}Count">0</span></div>`;
     });
 
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
-        shedStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="shed-${id}Count">0</span></div>`;
         
-        shedSellContainer.innerHTML += `
-            <div class="sell-item" id="${id}SellDiv">
-                <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${item.icon} ${item.name}</div>
-                <button id="sell${id}Btn" onclick="sellArtisan('${id}')">Sell 1 ($${item.sellPrice})</button>
-                <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
-            </div>
-        `;
+        if (item.machine === 'animal') {
+            if (barnStatsContainer) barnStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="barn-${id}Count">0</span></div>`;
+            if (barnSellContainer) barnSellContainer.innerHTML += `
+                <div class="sell-item" id="${id}SellDiv">
+                    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${item.icon} ${item.name}</div>
+                    <button id="sell${id}Btn" onclick="sellArtisan('${id}')">Sell 1 ($${item.sellPrice})</button>
+                    <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
+                </div>
+            `;
+        } else {
+            shedStatsContainer.innerHTML += `<div>${item.icon} ${item.name}: <span id="shed-${id}Count">0</span></div>`;
+            shedSellContainer.innerHTML += `
+                <div class="sell-item" id="${id}SellDiv">
+                    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${item.icon} ${item.name}</div>
+                    <button id="sell${id}Btn" onclick="sellArtisan('${id}')">Sell 1 ($${item.sellPrice})</button>
+                    <button id="sellAll${id}Btn" onclick="sellAllArtisan('${id}')" style="background-color: #e67e22;">Sell All</button>
+                </div>
+            `;
+        }
     });
 
     const wheatRadio = document.querySelector('input[value="wheat"]');
@@ -172,13 +204,9 @@ function generateUI() {
 window.updateRecipeInfo = function() {
     const recipeId = getSelectedArtisan();
     if (!recipeId) return;
-    
     const recipe = artisanData[recipeId];
     const infoSpan = document.getElementById('selected-recipe-info');
-    
-    if (infoSpan) {
-        infoSpan.innerText = `(Needs ${recipe.inputAmount} ${crops[recipe.input].name})`;
-    }
+    if (infoSpan) infoSpan.innerText = `(Needs ${recipe.inputAmount} ${crops[recipe.input] ? crops[recipe.input].name : artisanData[recipe.input].name})`;
 }
 
 function updateUI() {
@@ -233,9 +261,7 @@ function updateUI() {
     }
 
     const invView = document.getElementById('inventory-view');
-    if (invView && invView.style.display === 'block') {
-        renderInventory();
-    }
+    if (invView && invView.style.display === 'block') renderInventory();
 }
 
 function updateShedUI() {
@@ -246,21 +272,16 @@ function updateShedUI() {
     const shedMoney = document.getElementById('shed-money');
     if (shedMoney) shedMoney.innerText = state.money;
 
-    Object.keys(crops).forEach(cropId => {
-        const countSpan = document.getElementById(`shed-${cropId}Count`);
-        if (countSpan) countSpan.innerText = state.inventory[cropId] || 0;
-    });
-
     Object.keys(artisanData).forEach(id => {
-        const countSpan = document.getElementById(`shed-${id}Count`);
-        if (countSpan) countSpan.innerText = state.inventory[id] || 0;
-
-        const isLow = (state.inventory[id] <= 0); 
-        const sellBtn = document.getElementById(`sell${id}Btn`);
-        const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
-        
-        if (sellBtn) sellBtn.disabled = isLow;
-        if (sellAllBtn) sellAllBtn.disabled = isLow;
+        if (artisanData[id].machine !== 'animal') {
+            const countSpan = document.getElementById(`shed-${id}Count`);
+            if (countSpan) countSpan.innerText = state.inventory[id] || 0;
+            const isLow = (state.inventory[id] <= 0); 
+            const sellBtn = document.getElementById(`sell${id}Btn`);
+            const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
+            if (sellBtn) sellBtn.disabled = isLow;
+            if (sellAllBtn) sellAllBtn.disabled = isLow;
+        }
     });
 
     const storeDiv = document.getElementById('shed-store-container');
@@ -276,8 +297,46 @@ function updateShedUI() {
             `;
         });
     }
-
     updateShedTabs();
+}
+
+function updateBarnUI() {
+    if (!state.barnUnlocked) return;
+    document.getElementById('barn-locked').style.display = 'none';
+    document.getElementById('barn-unlocked').style.display = 'block';
+
+    const barnMoney = document.getElementById('barn-money');
+    if (barnMoney) barnMoney.innerText = state.money;
+    
+    const feedCount = document.getElementById('barn-feed-count');
+    if (feedCount) feedCount.innerText = state.inventory['animal_feed'] || 0;
+
+    Object.keys(artisanData).forEach(id => {
+        if (artisanData[id].machine === 'animal') {
+            const countSpan = document.getElementById(`barn-${id}Count`);
+            if (countSpan) countSpan.innerText = state.inventory[id] || 0;
+            const sellBtn = document.getElementById(`sell${id}Btn`);
+            const sellAllBtn = document.getElementById(`sellAll${id}Btn`);
+            const isLow = (state.inventory[id] <= 0); 
+            if (sellBtn) sellBtn.disabled = isLow;
+            if (sellAllBtn) sellAllBtn.disabled = isLow;
+        }
+    });
+
+    const storeDiv = document.getElementById('barn-store-container');
+    if (storeDiv) {
+        storeDiv.innerHTML = '';
+        Object.keys(animalData).forEach(id => {
+            const a = animalData[id];
+            const currentPrice = state.animalPrices[id];
+            storeDiv.innerHTML += `
+                <button onclick="buyAnimal('${id}')" style="background-color: #d35400; color: white;">
+                    Buy ${a.icon} ${a.name} ($${currentPrice})
+                </button>
+            `;
+        });
+    }
+    updateBarnTabs();
 }
 
 function renderFarm() {
@@ -295,7 +354,6 @@ function renderFarm() {
     }
 
     const now = Date.now();
-
     state.lots.forEach((lot, index) => {
         const tile = document.getElementById(`lot-${index}`);
         if (!tile) return;
@@ -309,7 +367,6 @@ function renderFarm() {
             const totalGrowTime = crops[lot.type].growTime * 1000;
             const timeRemaining = lot.finishTime - now;
             const timeElapsed = totalGrowTime - timeRemaining;
-            
             let percentage = (timeElapsed / totalGrowTime) * 100;
             if (percentage > 100) percentage = 100;
             if (percentage < 0) percentage = 0;
@@ -320,10 +377,8 @@ function renderFarm() {
             if (secondsLeft > 0) {
                 tile.className = 'lot';
                 const readyCol = crops[lot.type].readyColor;
-                
                 tile.style.background = `linear-gradient(to top, ${readyCol} ${percentage}%, #34495e ${percentage}%)`;
                 tile.style.borderColor = readyCol;
-                
                 tile.innerHTML = `
                     <div style="font-size: 1.2rem; margin-bottom: 5px;">${crops[lot.type].icon}</div>
                     <div style="font-size: 0.9rem; font-weight: bold;">${crops[lot.type].name}</div>
@@ -353,9 +408,7 @@ function renderShedFloor() {
         return;
     }
 
-    const visibleMachines = state.machines
-        .map((machine, index) => ({ machine, index }))
-        .filter(item => item.machine.type === state.activeShedTab);
+    const visibleMachines = state.machines.map((machine, index) => ({ machine, index })).filter(item => item.machine.type === state.activeShedTab);
 
     if (visibleMachines.length === 0) {
         floor.innerHTML = `<p style="color: #bdc3c7;">You don't have any ${machinesData[state.activeShedTab].name}s yet!</p>`;
@@ -372,7 +425,6 @@ function renderShedFloor() {
     }
 
     const now = Date.now();
-
     visibleMachines.forEach((item) => {
         const machine = item.machine;
         const originalIndex = item.index;
@@ -394,8 +446,7 @@ function renderShedFloor() {
 
         } else if (machine.isProcessing && !machine.isReady) {
             const recipe = artisanData[machine.recipe];
-            const cropSource = crops[recipe.input];
-
+            const cropSource = crops[recipe.input] || artisanData[recipe.input];
             const totalProcessTime = recipe.processTime * 1000;
             const timeRemaining = machine.finishTime - now;
             const timeElapsed = totalProcessTime - timeRemaining;
@@ -406,11 +457,11 @@ function renderShedFloor() {
 
             const secondsLeft = Math.ceil(timeRemaining / 1000);
             const timeString = formatTime(secondsLeft);
+            const rColor = cropSource.readyColor || '#e67e22';
 
             card.className = 'lot working-machine'; 
-            card.style.background = `linear-gradient(to top, ${cropSource.readyColor} ${percentage}%, #34495e ${percentage}%)`;
-            card.style.borderColor = cropSource.readyColor;
-
+            card.style.background = `linear-gradient(to top, ${rColor} ${percentage}%, #34495e ${percentage}%)`;
+            card.style.borderColor = rColor;
             card.innerHTML = `
                 <div style="font-size: 1.5rem; margin-bottom: 5px;">${recipe.icon}</div>
                 <div style="font-weight: bold; font-size: 0.9rem;">${recipe.name}</div>
@@ -433,6 +484,89 @@ function renderShedFloor() {
     });
 }
 
+function renderBarnFloor() {
+    if(document.getElementById('barn-view').style.display === 'none') return;
+    const floor = document.getElementById('barn-floor');
+    if(!floor) return;
+
+    if (state.animals.length === 0) {
+        floor.innerHTML = '<p style="color: #bdc3c7;">Your barn is empty! Buy an animal from the market above.</p>';
+        return;
+    }
+
+    const visibleAnimals = state.animals.map((animal, index) => ({ animal, index })).filter(item => item.animal.type === state.activeBarnTab);
+
+    if (visibleAnimals.length === 0) {
+        floor.innerHTML = `<p style="color: #bdc3c7;">You don't have any ${animalData[state.activeBarnTab].name}s yet!</p>`;
+        return;
+    }
+
+    if (floor.children.length !== visibleAnimals.length || floor.children[0].tagName === 'P') {
+        floor.innerHTML = '';
+        visibleAnimals.forEach((item) => {
+            const card = document.createElement('div');
+            card.id = `animal-${item.index}`; 
+            floor.appendChild(card);
+        });
+    }
+
+    const now = Date.now();
+    visibleAnimals.forEach((item) => {
+        const animal = item.animal;
+        const originalIndex = item.index;
+        const card = document.getElementById(`animal-${originalIndex}`);
+        if (!card) return;
+
+        const aData = animalData[animal.type];
+
+        if (!animal.isProcessing && !animal.isReady) {
+            card.className = 'lot machine-empty'; 
+            card.style.background = '#34495e';
+            card.style.borderColor = '#7f8c8d';
+            card.innerHTML = `
+                <div style="font-size: 2rem; margin-bottom: 5px;">${aData.icon}</div>
+                <div style="font-weight: bold; font-size: 1rem;">${aData.name}</div>
+                <div style="font-size: 0.8rem; margin-top: 5px; color: #f39c12;">Feed: ${aData.feedAmount} 🌾</div>
+            `;
+            card.onclick = () => feedAnimal(originalIndex); 
+
+        } else if (animal.isProcessing && !animal.isReady) {
+            const totalProcessTime = aData.processTime * 1000;
+            const timeRemaining = animal.finishTime - now;
+            const timeElapsed = totalProcessTime - timeRemaining;
+
+            let percentage = (timeElapsed / totalProcessTime) * 100;
+            if (percentage > 100) percentage = 100;
+            if (percentage < 0) percentage = 0;
+
+            const secondsLeft = Math.ceil(timeRemaining / 1000);
+            const timeString = formatTime(secondsLeft);
+
+            card.className = 'lot working-machine'; 
+            card.style.background = `linear-gradient(to top, #e67e22 ${percentage}%, #34495e ${percentage}%)`;
+            card.style.borderColor = '#e67e22';
+            card.innerHTML = `
+                <div style="font-size: 1.5rem; margin-bottom: 5px;">${aData.icon}</div>
+                <div style="font-weight: bold; font-size: 0.9rem;">Eating...</div>
+                <div style="font-size: 0.8rem; margin-top: 5px; color: white;">⏳ ${timeString}</div>
+            `;
+            card.onclick = null; 
+
+        } else if (animal.isReady) {
+            const outputObj = artisanData[aData.output];
+            card.className = 'lot ready-machine'; 
+            card.style.background = '#27ae60';
+            card.style.borderColor = '#2ecc71';
+            card.innerHTML = `
+                <div style="font-size: 1.5rem; margin-bottom: 5px;">${outputObj.icon}</div>
+                <div style="font-weight: bold; font-size: 0.9rem;">${outputObj.name}</div>
+                <div style="font-size: 0.8rem; margin-top: 5px;">✔️ Ready!</div>
+            `;
+            card.onclick = () => collectAnimal(originalIndex); 
+        }
+    });
+}
+
 function renderInventory() {
     const rawContainer = document.getElementById('inventory-raw');
     const artisanContainer = document.getElementById('inventory-artisan');
@@ -444,7 +578,6 @@ function renderInventory() {
     Object.keys(crops).forEach(id => {
         const item = crops[id];
         const count = state.inventory[id] || 0;
-        
         if (state.unlockedCrops[id] || count > 0) {
             rawContainer.innerHTML += `
                 <div style="background: #34495e; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid ${item.growingColor}; min-width: 110px;">
@@ -456,13 +589,10 @@ function renderInventory() {
         }
     });
 
-    let hasArtisan = false;
     Object.keys(artisanData).forEach(id => {
         const item = artisanData[id];
         const count = state.inventory[id] || 0;
-        
-        if (state.shedUnlocked || count > 0) {
-            hasArtisan = true;
+        if (state.shedUnlocked || state.barnUnlocked || count > 0) {
             artisanContainer.innerHTML += `
                 <div style="background: #34495e; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #9b59b6; min-width: 110px;">
                     <div style="font-size: 2.5rem; margin-bottom: 5px;">${item.icon}</div>
@@ -472,10 +602,6 @@ function renderInventory() {
             `;
         }
     });
-
-    if (!hasArtisan) {
-        artisanContainer.innerHTML = '<p style="color: #bdc3c7; font-style: italic;">Unlock the Shed to discover Artisan Goods!</p>';
-    }
 }
 
 function updateMuteButton() {

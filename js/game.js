@@ -1,7 +1,3 @@
-// ==========================================
-// game.js - Core Logic & Game Loop
-// ==========================================
-
 function checkAuth() {
     const storedUser = localStorage.getItem('farmCurrentUser');
     if (!storedUser) {
@@ -10,7 +6,6 @@ function checkAuth() {
     }
     currentUser = JSON.parse(storedUser);
     saveKey = `tileFarmSave_${currentUser.email}`; 
-    
     document.getElementById('user-name').innerText = currentUser.name;
     document.getElementById('user-email').innerText = currentUser.email;
     document.getElementById('user-pic').src = currentUser.picture;
@@ -24,29 +19,28 @@ function signOut() {
 
 async function init() {
     if (!checkAuth()) return; 
-
     try {
         const resCrops = await fetch('data/crops.json'); 
         const resArtisan = await fetch('data/artisan.json');
         const resMachines = await fetch('data/machines.json');
         const resWeather = await fetch('data/weather.json');
+        const resAnimals = await fetch('data/animals.json');
         
         crops = await resCrops.json();
         artisanData = await resArtisan.json();
         machinesData = await resMachines.json();
         weatherData = await resWeather.json();
-        
-        Object.keys(artisanData).forEach(id => {
-            if (state.inventory[id] === undefined) state.inventory[id] = 0;
-        });
+        animalData = await resAnimals.json();
 
         generateUI(); 
         loadGame();
         updateMuteButton();
         updateUI();
         updateShedUI();
+        updateBarnUI();
         renderFarm();
         renderShedFloor();
+        renderBarnFloor();
         updateWeatherUI();
         startGameLoop();
     } catch (error) {
@@ -55,7 +49,6 @@ async function init() {
     }
 }
 
-// --- Inputs ---
 function getSelectedSeed() {
     const checked = document.querySelector('input[name="seed"]:checked');
     return checked ? checked.value : 'wheat'; 
@@ -66,7 +59,6 @@ function getSelectedArtisan() {
     return checked ? checked.value : 'beer';
 }
 
-// --- Farm Actions ---
 function handleLotClick(index) {
     const lot = state.lots[index];
     const now = Date.now();
@@ -78,14 +70,13 @@ function plantCrop(lotIndex) {
     const seed = getSelectedSeed();
     if (state.inventory[seed] >= 1) {
         state.inventory[seed] -= 1;
-
         const weatherObj = weatherData.types[state.currentWeather];
         const modifiedGrowTime = crops[seed].growTime / weatherObj.growSpeed;
-
         state.lots[lotIndex] = { type: seed, finishTime: Date.now() + (modifiedGrowTime * 1000), isReady: false };
         playSound('plant');
         updateUI();
         updateShedUI();
+        updateBarnUI();
         renderFarm();
     } else {
         showMessage(`You don't have enough ${crops[seed].name} seeds!`);
@@ -98,11 +89,13 @@ function harvestCrop(lotIndex) {
     const totalYield = crops[cropType].yield + weatherObj.yieldBonus;
 
     state.inventory[cropType] += totalYield;
+    state.inventory['pulp'] = (state.inventory['pulp'] || 0) + 1;
     state.stats.totalHarvested += totalYield;
     state.lots[lotIndex] = null;
     playSound('harvest');
     updateUI();
     updateShedUI();
+    updateBarnUI();
     renderFarm();
 }
 
@@ -116,6 +109,7 @@ function harvestAll() {
         if (lot !== null && lot.finishTime <= now) {
             const totalYield = crops[lot.type].yield + weatherObj.yieldBonus;
             state.inventory[lot.type] += totalYield;
+            state.inventory['pulp'] = (state.inventory['pulp'] || 0) + 1; 
             state.stats.totalHarvested += totalYield;
             state.lots[index] = null; 
             harvestedAnything = true;
@@ -126,6 +120,7 @@ function harvestAll() {
         showMessage("Harvested all ready crops!");
         updateUI();
         updateShedUI();
+        updateBarnUI();
         renderFarm();
     }
 }
@@ -149,6 +144,7 @@ function plantAll() {
         showMessage(`Planted as much ${crops[seed].name} as possible!`);
         updateUI();
         updateShedUI();
+        updateBarnUI();
         renderFarm();
     }
 }
@@ -162,6 +158,7 @@ function sell(cropType, amount = 1) {
         playSound('money');
         updateUI();
         updateShedUI();
+        updateBarnUI();
     } else {
         showMessage(`You must keep at least 1 ${crops[cropType].name} seed!`);
     }
@@ -177,6 +174,7 @@ function sellAll(cropType) {
         playSound('money');
         updateUI();
         updateShedUI();
+        updateBarnUI();
     }
 }
 
@@ -189,6 +187,7 @@ function buyLot() {
         playSound('money');
         updateUI();
         updateShedUI();
+        updateBarnUI();
         renderFarm();
     } else {
         showMessage("Not enough money!");
@@ -233,7 +232,6 @@ function buyPlanter() {
     }
 }
 
-// --- Shed Actions ---
 window.unlockShed = function() {
     if (state.money >= 50000) {
         state.money -= 50000;
@@ -254,24 +252,12 @@ window.buyMachine = function(machineId) {
     if (state.money >= currentPrice) {
         state.money -= currentPrice;
         state.stats.totalSpent += currentPrice;
-        
-        state.machines.push({
-            type: machineId,
-            isProcessing: false,
-            isReady: false,
-            finishTime: 0,
-            recipe: null
-        });
-
+        state.machines.push({ type: machineId, isProcessing: false, isReady: false, finishTime: 0, recipe: null });
         state.machinePrices[machineId] = Math.floor(currentPrice * 1.2);
-        
-        // NEW: Perfectly dynamic alphabetical sorting!
         state.machines.sort((a, b) => a.type.localeCompare(b.type));
-        
         state.activeShedTab = machineId;
         const floor = document.getElementById('shed-floor');
-        if (floor) floor.innerHTML = ''; // Force rebuild
-
+        if (floor) floor.innerHTML = ''; 
         saveGame();
         updateUI();
         updateShedUI();
@@ -290,19 +276,18 @@ window.loadMachine = function(index) {
         showMessage(`You can't make ${recipe.name} in a ${machinesData[machine.type].name}!`);
         return;
     }
-
     if (state.inventory[recipe.input] >= recipe.inputAmount) {
         state.inventory[recipe.input] -= recipe.inputAmount;
         machine.recipe = recipeId;
         machine.isProcessing = true;
         machine.finishTime = Date.now() + (recipe.processTime * 1000);
-        
         saveGame();
         updateUI(); 
-        updateShedUI(); 
+        updateShedUI();
+        updateBarnUI();
         renderShedFloor();
     } else {
-        showMessage(`You need ${recipe.inputAmount} ${crops[recipe.input].name} to start this!`);
+        showMessage(`You need ${recipe.inputAmount} ${crops[recipe.input] ? crops[recipe.input].name : artisanData[recipe.input].name} to start this!`);
     }
 }
 
@@ -310,7 +295,12 @@ window.collectMachine = function(index) {
     const machine = state.machines[index];
     const recipe = artisanData[machine.recipe];
 
-    state.inventory[recipe.id] += 1;
+    // BUG FIX: Safer addition so missing items don't become NaN!
+    state.inventory[recipe.id] = (state.inventory[recipe.id] || 0) + 1;
+    
+    if (machinesData[machine.type].id === 'juicer') {
+        state.inventory['pulp'] = (state.inventory['pulp'] || 0) + 2; 
+    }
     
     machine.isProcessing = false;
     machine.isReady = false;
@@ -321,6 +311,7 @@ window.collectMachine = function(index) {
     saveGame();
     updateUI();
     updateShedUI();
+    updateBarnUI();
     renderShedFloor();
 }
 
@@ -347,9 +338,10 @@ window.loadAllMachines = function() {
         saveGame();
         updateUI();
         updateShedUI();
+        updateBarnUI();
         renderShedFloor();
     } else {
-        showMessage(`No empty ${machinesData[recipe.machine].name}s or not enough ${crops[recipe.input].name}!`);
+        showMessage(`No empty ${machinesData[recipe.machine].name}s or not enough raw materials!`);
     }
 }
 
@@ -358,7 +350,12 @@ window.collectAllMachines = function() {
     state.machines.forEach((machine) => {
         if (machine.isReady) {
             const recipe = artisanData[machine.recipe];
-            state.inventory[recipe.id] += 1;
+            // BUG FIX: Safer addition!
+            state.inventory[recipe.id] = (state.inventory[recipe.id] || 0) + 1;
+            
+            if (machinesData[machine.type].id === 'juicer') {
+                state.inventory['pulp'] = (state.inventory['pulp'] || 0) + 2; 
+            }
             machine.isProcessing = false;
             machine.isReady = false;
             machine.finishTime = 0;
@@ -369,10 +366,11 @@ window.collectAllMachines = function() {
 
     if (collectedAnything) {
         playSound('harvest');
-        showMessage("Collected all ready artisan goods!");
+        showMessage("Collected all ready goods!");
         saveGame();
         updateUI();
         updateShedUI();
+        updateBarnUI();
         renderShedFloor();
     } else {
         showMessage("No machines are ready yet!");
@@ -385,11 +383,11 @@ window.sellArtisan = function(itemId) {
         const earned = artisanData[itemId].sellPrice;
         state.money += earned;
         if(state.stats) state.stats.totalEarned += earned;
-        
         playSound('money');
         saveGame();
         updateUI(); 
         updateShedUI(); 
+        updateBarnUI();
     } else {
         showMessage("You don't have any to sell!");
     }
@@ -399,30 +397,134 @@ window.sellAllArtisan = function(itemId) {
     if (state.inventory[itemId] >= 1) {
         const amountToSell = state.inventory[itemId]; 
         state.inventory[itemId] -= amountToSell;
-        
         const earned = artisanData[itemId].sellPrice * amountToSell;
         state.money += earned;
         if(state.stats) state.stats.totalEarned += earned;
-        
         playSound('money');
         saveGame();
         updateUI(); 
-        updateShedUI(); 
+        updateShedUI();
+        updateBarnUI();
     } else {
         showMessage("You don't have any to sell!");
     }
 }
 
-// --- Mailbox & Settings ---
-window.receiveMailMoney = function(amount) {
-    state.money += amount;
-    if (state.stats) state.stats.totalEarned += amount;
-    playSound('money');
-    updateUI();
-    updateShedUI();
+// --- BARN ACTIONS ---
+window.unlockBarn = function() {
+    if (state.money >= 75000) {
+        state.money -= 75000;
+        state.barnUnlocked = true;
+        saveGame();
+        updateUI();
+        updateBarnUI();
+    } else {
+        showMessage("Not enough money! You need $75,000.");
+    }
+}
+
+window.buyAnimal = function(animalId) {
+    const currentPrice = state.animalPrices[animalId];
+    if (state.money >= currentPrice) {
+        state.money -= currentPrice;
+        state.animals.push({ type: animalId, isProcessing: false, isReady: false, finishTime: 0 });
+        state.animalPrices[animalId] = Math.floor(currentPrice * 1.2);
+        state.animals.sort((a, b) => a.type.localeCompare(b.type));
+        state.activeBarnTab = animalId;
+        const floor = document.getElementById('barn-floor');
+        if (floor) floor.innerHTML = ''; 
+        saveGame();
+        updateUI();
+        updateBarnUI();
+        renderBarnFloor();
+    } else {
+        showMessage(`Not enough money! You need $${currentPrice}.`);
+    }
+}
+
+window.feedAnimal = function(index) {
+    const animal = state.animals[index];
+    const aData = animalData[animal.type];
+
+    if ((state.inventory['animal_feed'] || 0) >= aData.feedAmount) {
+        state.inventory['animal_feed'] -= aData.feedAmount;
+        animal.isProcessing = true;
+        animal.finishTime = Date.now() + (aData.processTime * 1000);
+        saveGame();
+        updateUI();
+        updateBarnUI(); 
+        renderBarnFloor();
+    } else {
+        showMessage(`You need ${aData.feedAmount} Animal Feed! Make some in the Pellet Mill.`);
+    }
+}
+
+window.collectAnimal = function(index) {
+    const animal = state.animals[index];
+    const aData = animalData[animal.type];
+
+    state.inventory[aData.output] = (state.inventory[aData.output] || 0) + 1;
+    animal.isProcessing = false;
+    animal.isReady = false;
+    animal.finishTime = 0;
+
+    playSound('harvest');
     saveGame();
-    showMessage(`Claimed $${amount} from the market!`);
-};
+    updateUI();
+    updateBarnUI();
+    renderBarnFloor();
+}
+
+window.feedAllAnimals = function() {
+    let fedAnything = false;
+    state.animals.forEach((animal) => {
+        if (!animal.isProcessing && !animal.isReady) {
+            const aData = animalData[animal.type];
+            if ((state.inventory['animal_feed'] || 0) >= aData.feedAmount) {
+                state.inventory['animal_feed'] -= aData.feedAmount;
+                animal.isProcessing = true;
+                animal.finishTime = Date.now() + (aData.processTime * 1000);
+                fedAnything = true;
+            }
+        }
+    });
+
+    if (fedAnything) {
+        playSound('plant');
+        showMessage("Fed all possible animals!");
+        saveGame();
+        updateUI();
+        updateBarnUI();
+        renderBarnFloor();
+    } else {
+        showMessage("Not enough Animal Feed!");
+    }
+}
+
+window.collectAllAnimals = function() {
+    let collectedAnything = false;
+    state.animals.forEach((animal) => {
+        if (animal.isReady) {
+            const aData = animalData[animal.type];
+            state.inventory[aData.output] = (state.inventory[aData.output] || 0) + 1;
+            animal.isProcessing = false;
+            animal.isReady = false;
+            animal.finishTime = 0;
+            collectedAnything = true;
+        }
+    });
+
+    if (collectedAnything) {
+        playSound('harvest');
+        showMessage("Collected all animal products!");
+        saveGame();
+        updateUI();
+        updateBarnUI();
+        renderBarnFloor();
+    } else {
+        showMessage("No animals are ready yet!");
+    }
+}
 
 function toggleMute() {
     state.muted = !state.muted; 
@@ -430,17 +532,14 @@ function toggleMute() {
     saveGame(); 
 }
 
-// --- Master Game Loop ---
 function startGameLoop() {
     setInterval(() => {
         const now = Date.now();
-        
-        if (now - state.lastDayTick >= 60000) {
-            advanceDay();
-        }
+        if (now - state.lastDayTick >= 60000) advanceDay();
 
         let needsFarmRender = false;
         let needsShedRender = false;
+        let needsBarnRender = false;
         
         state.lots.forEach(lot => {
             if (lot !== null) {
@@ -465,10 +564,24 @@ function startGameLoop() {
                 }
             });
         }
+
+        if (state.barnUnlocked && state.animals && state.animals.length > 0) {
+            state.animals.forEach(animal => {
+                if (animal.isProcessing && !animal.isReady) {
+                    if (now >= animal.finishTime) {
+                        animal.isReady = true;
+                        needsBarnRender = true;
+                    } else {
+                        needsBarnRender = true; 
+                    }
+                }
+            });
+        }
         
         saveGame();
         if (needsFarmRender) renderFarm();
         if (needsShedRender) renderShedFloor();
+        if (needsBarnRender) renderBarnFloor();
         
     }, 1000);
 }

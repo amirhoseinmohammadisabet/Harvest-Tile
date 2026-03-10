@@ -1,0 +1,7 @@
+{
+    "chicken": { "id": "chicken", "name": "Chicken", "baseCost": 2000, "feedAmount": 1, "processTime": 60, "output": "egg", "icon": "🐔" },
+    "duck": { "id": "duck", "name": "Duck", "baseCost": 3500, "feedAmount": 1, "processTime": 90, "output": "duck_egg", "icon": "🦆" },
+    "sheep": { "id": "sheep", "name": "Sheep", "baseCost": 8000, "feedAmount": 2, "processTime": 240, "output": "wool", "icon": "🐑" },
+    "goat": { "id": "goat", "name": "Goat", "baseCost": 12000, "feedAmount": 2, "processTime": 300, "output": "meat", "icon": "🐐" },
+    "cow": { "id": "cow", "name": "Cow", "baseCost": 20000, "feedAmount": 3, "processTime": 400, "output": "milk", "icon": "🐄" }
+}
